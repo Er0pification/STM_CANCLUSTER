@@ -3,26 +3,49 @@
 #include <arduino.h>
 #include "Can.h"
 
-#define SERIAL_TIMEOUT 250
+#define SERIAL_TIMEOUT 50
 #define COMM_GET_LENGTH 'l'
 #define COMM_REQUEST_PACKET 'n'
+#define COMM_REQUEST_DATA 'r' //New format for the optimised OutputChannels over CAN
 #define MAX_PACKET_LENGTH 30
 
 #define CALIBRATION_TEMPERATURE_OFFSET 40
 
-#define INDEX_CLT 4+2
-#define INDEX_OILT 16+2
-#define INDEX_VOLTAGE 5+2
-#define INDEX_RPM 7+2
-#define INDEX_VSS 13+2
-#define INDEX_FUEL 17+2
-#define INDEX_AMBIENT 15+2
-#define INDEX_SPARK 11+2
+#define PREFIX 2  
+
+#define OFF1 4
+#define DLC1 18
+#define INDEX_MAP 4+ PREFIX -OFF1
+#define INDEX_CLT 7+ PREFIX -OFF1
+#define INDEX_VOLTAGE 9+ PREFIX -OFF1
+#define INDEX_RPM 14+PREFIX-OFF1
+#define INDEX_PW 20+PREFIX-OFF1
+
+#define OFF2 41
+#define DLC2 9
+#define INDEX_AMBIENT 41+PREFIX-OFF2
+#define INDEX_OILT 49+PREFIX-OFF2
+
+#define OFF3 100
+#define DLC3 2
+#define INDEX_VSS 100+PREFIX-OFF3
+
+#define OFF4 122
+#define DLC4 3
+#define INDEX_FUEL 122+PREFIX-OFF4
+
+#define OFF5 31 //currentStatus.spark;
+#define DLC5 1
+#define INDEX_SPARK PREFIX
 #define LIMITER_MASK 0b11111000
 #define SYNC_MASK 0b00000001
 
 
+#define tsCanId 0x00
+
+
 extern bool data_valid;
+extern bool no_resp;
 
 extern uint8_t status_engine;
 extern uint16_t MAP;
@@ -46,11 +69,14 @@ extern uint8_t fuel_percent;
 extern uint8_t fuel_capacity;
 extern uint8_t fuel_warning;
 
+extern HardwareSerial DbgSerial;
+
 void InitializeSerial(void);
 char sendCommand (char);
 char serialWait (void);
-char serialRequestPacket(void);
-char serialGetPacket (void);
+void serialRequestData(uint16_t, uint16_t);
+void serialGetData (void);
 void setFlags (void);
+void tripCalc (void);
 
 #endif

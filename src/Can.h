@@ -15,7 +15,7 @@ BOOST####68KPA
 #define CAN_H
 
 #include <eXoCAN.h>
-
+#include "serialcomm.h"
 #include "base64.h"
 
 #define sweep_time 1000
@@ -36,8 +36,10 @@ extern uint8_t fuel_capacity;
 extern uint8_t fuel_low_level;
 extern int trip_counter;
  extern int outside_temp;
-enum msgtype {Def, tripA, AvgCons, InstCons, BattV, CltT, OilT, MsgNum};
-
+enum msgtype {Def, msg_tripA, msg_AvgCons, msg_BattV, msg_CltT, msg_OilT, msg_Timeout, msg_Corrupt, MsgNum};
+#define LAST_MSG msg_OilT
+extern bool cluster_awake;
+extern uint8_t odo_cnt;
 
 
 
@@ -49,7 +51,7 @@ void CanSend(long, unsigned char *, char );
 void CanText (char *);
 void ClrText (void);
 void UpdateText (void);
-char ValueToText (void);
+void ValueToText (void);
 void NextMsg (void);
 
 #endif

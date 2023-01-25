@@ -18,13 +18,13 @@ BOOST####68KPA
 
 eXoCAN can;
 
-struct msg {
+/*struct msg {
     char message[15];
     uint8_t pos;
     bool isInt;
     int maxval;
     int *value;
-};
+};*/
 uint8_t currentMsg, prevMsg;
 int clt;
 int oilt;
@@ -41,16 +41,20 @@ uint8_t fuel_capacity;
 uint8_t fuel_low_level;
 int prevVal;
 char msgBuff[15];
+bool cluster_awake = false;
+uint8_t odo_cnt;
 
 
-struct msg message[MsgNum];
+//struct msg message[MsgNum];
 
 
 
 void canISR() // get bus msg frame passed by a filter to FIFO0
 {
   can.rxMsgLen = can.receive(can.id, can.fltIdx, can.rxData.bytes); // get CAN msg
-  if (can.id == DIMMER_ID){
+  switch (can.id)
+  {
+  case ID_DIMMER:
     if (can.rxData.bytes[DIMM_SENSOR_BYTE] && DIMM_SENSOR ) {
       F_BCL = true;
     }
@@ -58,8 +62,16 @@ void canISR() // get bus msg frame passed by a filter to FIFO0
       F_BCL = false;
       NextMsg();
     }
+    break;
+
+  case ID_STATUS:
+    if (can.rxData.bytes[STATUS_BYTE] && STATUS_AWAKE) cluster_awake = true;
+    else cluster_awake = false;
+  
+  default:
+    break;
+
   }
- 
 }
 
 void InitializeCan (){
@@ -69,7 +81,7 @@ void InitializeCan (){
 
     
     
-    strcpy(message[tripA].message, "TRIP        KM");
+   /* strcpy(message[tripA].message, "TRIP        KM");
     message[tripA].pos = 11;
     message[tripA].isInt = false;
     message[tripA].maxval = 99999;
@@ -105,7 +117,14 @@ void InitializeCan (){
     message[OilT].maxval = 160;
     message[OilT].value = &oilt;
 
+    strcpy(message[Timeout].message, " ECU TIMEOUT! ");
+    message[Timeout].pos = NO_DATA;
+
+    strcpy(message[Corrupt].message, " DATA CORRUPT ");
+    message[Corrupt].pos = NO_DATA;
     currentMsg = tripA;
+    */
+   currentMsg = msg_tripA;
 
 }
 
@@ -206,6 +225,12 @@ void ClusterFramesSend (void){
   Data[7] = Byte;
   CanSend(0x04214001, Data, 8);  
 
+  //0x04214002 EPAS
+  Data[0] = 0;
+  if (F_EPAS_ERR) Byte+=EPAS_FAIL;
+  Data[1] = Byte;
+  can.transmit(0x04214002, Data, 2);
+
   //0x04214006 ABS indicator
   Data[0] = 0;
 
@@ -226,7 +251,7 @@ void ClusterFramesSend (void){
   Data[0] = hi8(speed_tmp);
   Data[1] = lo8(speed_tmp);
   Data[2] = 0;
-  Data[3] = trip_counter;
+  Data[3] = odo_cnt;
   CanSend(0x04394000, Data, 4);
 
   //0x06214000 FUEL
@@ -294,7 +319,10 @@ void ClusterFramesSend (void){
   Data[2] = 0;
   Data[3] = 0;
   Data[4] = 0;
-  Data[5] = 0;
+  Byte = 0;
+  if (F_CITY) Byte+=MODE_CITY;
+  if (F_SPORT) Byte+=MODE_SPORT;
+  Data[5] = Byte;
   Data[6] = 0;
   Data[7] = 0;
   CanSend(0x06314000, Data, 8);  
@@ -345,7 +373,7 @@ void CanText (char *message){
     else 
     Data[i] = 0;
   }
-  delay(5);
+  delay(15);
   CanSend(0x0a394021, Data, 8);
    
 }
@@ -356,55 +384,61 @@ void ClrText (void)
     Data[0] = 0;
     Data[1] = 0;
     CanSend(0x0a394021, Data, 8);
-    delay(5);
+    delay(15);
     CanSend(0x0a394021, Data, 8);
 }
 
 void UpdateText (void){
-  int val = *message[currentMsg].value;
-  if (currentMsg != prevMsg || val!=prevVal){//update text only if message or value has changed
-    if (currentMsg == Def) ClrText();
+    prevMsg = currentMsg;
+    if (no_resp) currentMsg = msg_Timeout;
+    else if (!data_valid) currentMsg = msg_Corrupt;
+    if (currentMsg == Def)
+    {
+      ClrText();
+    } 
     else {
-      strcpy(msgBuff, message[currentMsg].message);
+      //strcpy(msgBuff, message[currentMsg].message);
       ValueToText();
       CanText(msgBuff);      
     }
-    prevMsg = currentMsg;
-    prevVal = val;
-  }
+    currentMsg = prevMsg;
+  //}
   
 }
 
-char ValueToText (void){
-  int val = *message[currentMsg].value;
-  int valLen = 0;
-  int tmp = val;
-  bool negative = false;
-  if (val<0) {
-    negative = true;
-    val*=(-1);
+void ValueToText (void){
+
+  switch(currentMsg){
+    //info messages
+    case msg_tripA:
+      sprintf(msgBuff,"TRIP%6d.%dKM", trip_counter/10, trip_counter%10); //sprinf with floats uses shit ton of resources
+      break;
+    case msg_AvgCons:
+      sprintf(msgBuff,"AVG%4d.%dL/100", avgF/10, avgF%10);
+      break;
+    case msg_BattV:
+      sprintf(msgBuff,"BATT%7d.%dV", voltage/10, avgF%10);
+      break;
+    case msg_CltT:
+      sprintf(msgBuff,"CLT%9doC", clt);
+      break;
+    case msg_OilT:
+      sprintf(msgBuff,"OILT%9doC", oilt);
+      break;
+    //errors msg_Timeout, msg_Corrupt
+    case msg_Timeout:
+      sprintf(msgBuff," ECU TIMEOUT! ");
+      break;
+    case msg_Corrupt:
+      sprintf(msgBuff," DATA CORRUPT");
+      break;
+    
   }
-  while (tmp != 0) {
-    tmp /= 10;
-    ++valLen;
-    }
-  tmp = message[currentMsg].pos; 
-  msgBuff[tmp--] = (val%10)+'0';
-  if (!message[currentMsg].isInt) {
-    msgBuff[tmp--] = '.';
-  }
-  else if (valLen == 1) return 0;
-  while (valLen>1){
-      val /= 10;
-      valLen--;
-      msgBuff[tmp--] = (val%10) +'0';
-  }
-  if (negative) msgBuff[tmp--] = '-';
-  return 0;
+
 }
 
 void NextMsg (void){
   //prevMsg = currentMsg;
   currentMsg ++;
-  if (currentMsg>=MsgNum) currentMsg = 0;
+  if (currentMsg>=LAST_MSG) currentMsg = 0;
 }

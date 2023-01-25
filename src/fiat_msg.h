@@ -8,6 +8,13 @@
 //byte 6
 //byte 7
 
+//0x04214002
+//dlc 2
+//byte 0
+//byte 1
+#define EPAS_FAIL 0x80
+
+
 //0x06214000
 //byte 0
 #define BCL_EN 0x08
@@ -138,12 +145,14 @@
 //byte 3
 //byte 4
 //byte 5
+#define MODE_CITY 0x01
+#define MODE_SPORT 0x02
 //byte 6
 //byte 7
 
 //ID 0x06314003
 
-#define DIMMER_ID 0x06314003
+#define ID_DIMMER 0x06314003
 //byte 0
 //byte 1
 //byte 2 dimmer settings 0x00 to 0x70
@@ -204,6 +213,14 @@
 //byte 6
 //byte 7
 
+#define ID_STATUS 0x0E094003
+//byte 0
+//byte 1 
+#define STATUS_AWAKE 0x1E
+#define STATUS_ASLEEP 0x1C
+#define STATUS_BYTE 1
+
 
 #define MAX_SPEED 240
 #define MAX_RPM 8000
+
