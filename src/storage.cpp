@@ -7,6 +7,8 @@ bool eeprom_corrupt = false;
 uint16_t block_num;
 uint8_t block_write_cnt;
 
+dataUnion_t data;
+
 void initializeStorage (void)
 {
     Wire.setSDA(PB11);
@@ -57,12 +59,12 @@ void writeByte(uint8_t deviceaddress, uint16_t eeaddress, byte data)
   Wire.endTransmission();
 }
 
-void writePage (uint8_t deviceaddress, uint16_t eeaddress, uint8_t *buffer)
+void writePage (uint8_t deviceaddress, uint16_t eeaddress, uint8_t *buffer, uint8_t length)
 {
 Wire.beginTransmission(deviceaddress);
   Wire.write(eeaddress >> 8);
   Wire.write(eeaddress & 0xFF);
-  for (uint8_t i = 0; i<64; i++){
+  for (uint8_t i = 0; i<length; i++){
         Wire.write(buffer[i]);
   }
   
@@ -90,7 +92,7 @@ byte readByte(uint8_t deviceaddress, uint16_t eeaddress)
 
 }
 
-void readPage(uint8_t deviceaddress, uint16_t eeaddress, uint8_t * buffer) 
+void readPage(uint8_t deviceaddress, uint16_t eeaddress, uint8_t * buffer, uint8_t length) 
 {  
   Wire.beginTransmission(deviceaddress);
   Wire.write(eeaddress >> 8);
@@ -102,15 +104,16 @@ void readPage(uint8_t deviceaddress, uint16_t eeaddress, uint8_t * buffer)
   //if (Wire.available()) 
   buffer[0] = Wire.read();
   Wire.requestFrom(deviceaddress,1);
-  for (uint8_t i = 1; i<64; i++){
+  for (uint8_t i = 1; i<length; i++){
         buffer[i] = Wire.read();
     }
 }
 
-byte checksumCalculate (uint8_t *buffer, uint8_t length)
+byte checksumCalculate (uint8_t *buffer)
 {
     uint16_t checksum;
     uint8_t checksum8;
+    uint8_t length = sizeof buffer;
     for(uint8_t i = 0; i< length - 1; i++)
     {
         checksum+=buffer[i];
@@ -125,39 +128,62 @@ byte checksumCalculate (uint8_t *buffer, uint8_t length)
 
 uint16_t WLfindFreshBlock(void)
 {
-    for (uint16_t i = 0; i<=BLOCK_NUM; i++)
+    for (uint16_t i = 0; i<BLOCK_NUM; i++)
     {
         block_write_cnt = readByte(addr,i*BLOCK_SIZE);
         if (block_write_cnt<255)
         {
             block_num = i*BLOCK_SIZE;
+            DbgSerial.printf("Wear levelling - reading block no. %d\n", block_num);
             return block_num;
         }
     }
     //if  end of wear-levelled memory area is reached, but no "fresh" block was found -> something is wrong, eeprom may be corrupted;
+    DbgSerial.println("Wear levelling ERROR! No fresh blocks found!");
     eeprom_corrupt = true;
     return 0xffff;
 }
 
 void readBlock(void)
 {
-    uint8_t buffer[BLOCK_SIZE];
     for(uint8_t i = 0; i<PAGE_IN_BLOCK; i++)
     {
-        readPage(addr,i*PAGE_SIZE + block_num * BLOCK_SIZE, buffer);
+        readPage(addr,i*PAGE_SIZE + block_num * BLOCK_SIZE, data.bytearray, BLOCK_SIZE);
     }
-    if (checksumCalculate(buffer,BLOCK_SIZE)) //checksum check
-    {
-            getDataFromBlock(buffer);
+    if (checksumCalculate(data.bytearray)) //checksum check
+    {   
+        DbgSerial.println("Checksum validation passed.");
+        data.WL_cnt++;
+        DbgSerial.printf("Wear levelling - block writes count = %d\n", data.WL_cnt);
+        if(data.WL_cnt==255)//if block is toasted, prepare to switch for next
+        {
+            writeByte(addr,block_num*BLOCK_SIZE,255);
+            if(block_num<BLOCK_NUM-1) //check if next block is available
+            {
+                block_num++;
+            }
+            else //starting from beginning
+            {
+                block_num = 0;
+            }
+            DbgSerial.printf("Wear levelling - block retiring, switching to block no. %d\n", block_num);
+        }
     }
     else  //if checksum error
     {
+        DbgSerial.println("Checksum validation FAILED!");
         eeprom_corrupt= true;
     }
 }
 
-void getDataFromBlock (uint8_t *buffer)
+void storeData(void)
 {
-    block_write_cnt = buffer[0];
-    //TODO - DOIT!
+    checksumCalculate(data.bytearray);
+    for(uint8_t i = 0; i<PAGE_IN_BLOCK; i++)
+    {
+        writePage(addr,i*PAGE_SIZE + block_num * BLOCK_SIZE, data.bytearray, BLOCK_SIZE);
+    }
+    DbgSerial.println("EEPROM written, terminating...");
+    
 }
+

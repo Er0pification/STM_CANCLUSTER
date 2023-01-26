@@ -14,7 +14,7 @@ uint16_t PW;
 uint32_t time;
 float trip;
 float odo_tmp;
-#define ODO_TICK 15.15 //1000m / 0x42
+
 
 void InitializeSerial(void)
 {
@@ -189,11 +189,11 @@ void tripCalc (void)
 {
     time = millis() - time;
     float inc = (speed/3.6)*(time/1000); //speed in m/s * time in s
-    trip+=inc;
+    data.tripMeter+=inc;
     odo_tmp += inc;
     if (odo_tmp>= ODO_TICK) 
     {
-        odo_cnt++;
+        data.odo_cnt++;
         odo_tmp-= ODO_TICK;
     }
     time = millis();

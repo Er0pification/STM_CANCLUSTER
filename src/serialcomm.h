@@ -2,6 +2,8 @@
 #define SERIALCOMM_H
 #include <arduino.h>
 #include "Can.h"
+#include "storage.h"
+#include "fiat_msg.h"
 
 #define SERIAL_TIMEOUT 50
 #define COMM_GET_LENGTH 'l'
@@ -40,6 +42,11 @@
 #define LIMITER_MASK 0b11111000
 #define SYNC_MASK 0b00000001
 
+#ifndef KM_STEPS
+#define ODO_TICK 15.15 //1000m / 0x42
+#else
+#define ODO_TICK 1000/KM_STEPS //1000m / 0x42
+#endif
 
 #define tsCanId 0x00
 
