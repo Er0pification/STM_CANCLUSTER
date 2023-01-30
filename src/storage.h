@@ -53,5 +53,6 @@ byte checksumCalculate (uint8_t *buffer);
 uint16_t WLfindFreshBlock(void);
 void readBlock(void);
 void storeData(void);
+void wipeStorage(void);
 
 #endif

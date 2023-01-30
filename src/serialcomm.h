@@ -7,8 +7,9 @@
 
 #define SERIAL_TIMEOUT 50
 #define COMM_GET_LENGTH 'l'
-#define COMM_REQUEST_PACKET 'n'
+#define COMM_REQUEST_PACKET 'E'
 #define COMM_REQUEST_DATA 'r' //New format for the optimised OutputChannels over CAN
+//#define COMM_REQUEST_DATA 114 //New format for the optimised OutputChannels over CAN
 #define MAX_PACKET_LENGTH 30
 
 #define CALIBRATION_TEMPERATURE_OFFSET 40
@@ -85,5 +86,6 @@ void serialRequestData(uint16_t, uint16_t);
 void serialGetData (void);
 void setFlags (void);
 void tripCalc (void);
-
+void tripReset (void);
+void ping (void);
 #endif

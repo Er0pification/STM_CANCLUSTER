@@ -10,11 +10,12 @@
 #include "serialcomm.h"
 #include "storage.h"
 #define LED PC13
-//(Speed and RPM)
-// SPEED CALCULATION FUNCTIONS
+#define TIMEFRAME 200
+#define EEPROM_TIME 15000/TIMEFRAME //15s
 
 
-
+uint32_t ms;
+uint16_t ee_tick;
 
 
 
@@ -34,7 +35,6 @@ void setup()
     /*setBackupRegister(3,0x1488);
     setBackupRegister(1,0x69);
     setBackupRegister(2,0x420);*/
-    trip_counter = 1488;
     
   
   SweepIndicators();
@@ -44,14 +44,25 @@ void setup()
 void loop()
 {   
     
-    
+    ms = millis();
     serialGetData();
     ClusterFramesSend();
     UpdateText();
-    trip_counter +=1;
-    delay(100);
-    if (no_resp) DbgSerial.println("ECU Response timeout!");
-    else DbgSerial.println("Serial OK");
+    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+    
+    while (1)
+    {
+        if (millis() - ms >= TIMEFRAME)
+        {
+          ee_tick++;
+          break;
+        } 
+    }
+    if (ee_tick>=EEPROM_TIME)
+    {
+      ee_tick = 0;
+      storeData();
+    }
     
 
 }

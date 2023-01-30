@@ -99,13 +99,14 @@ void readPage(uint8_t deviceaddress, uint16_t eeaddress, uint8_t * buffer, uint8
   Wire.write(eeaddress & 0xFF);
   Wire.endTransmission(); 
 
-  Wire.requestFrom(deviceaddress,1); 
+  Wire.requestFrom(deviceaddress,length); 
 
   //if (Wire.available()) 
-  buffer[0] = Wire.read();
-  Wire.requestFrom(deviceaddress,1);
-  for (uint8_t i = 1; i<length; i++){
-        buffer[i] = Wire.read();
+  //buffer[0] = Wire.read();
+  //Wire.requestFrom(deviceaddress,1);
+  for (uint8_t i = 0; i<length; i++){
+        if (Wire.available()) buffer[i] = Wire.read();
+       
     }
 }
 
@@ -140,6 +141,8 @@ uint16_t WLfindFreshBlock(void)
     }
     //if  end of wear-levelled memory area is reached, but no "fresh" block was found -> something is wrong, eeprom may be corrupted;
     DbgSerial.println("Wear levelling ERROR! No fresh blocks found!");
+    DbgSerial.println("Wiping EEPROM...");
+    wipeStorage();
     eeprom_corrupt = true;
     return 0xffff;
 }
@@ -179,11 +182,40 @@ void readBlock(void)
 void storeData(void)
 {
     checksumCalculate(data.bytearray);
+    if (data.WL_cnt==255)
+    {
+        data.WL_cnt = 0;
+        if (block_num == BLOCK_NUM - 1) //starting over
+        {
+            block_num = 0;
+        }
+        else
+        {
+            block_num++;
+        }
+    }
+    else
+    {
+        data.WL_cnt ++;
+    }
     for(uint8_t i = 0; i<PAGE_IN_BLOCK; i++)
     {
         writePage(addr,i*PAGE_SIZE + block_num * BLOCK_SIZE, data.bytearray, BLOCK_SIZE);
     }
-    DbgSerial.println("EEPROM written, terminating...");
+    DbgSerial.printf("Wear levelling - block %d writes count = %d\n", block_num, data.WL_cnt);
     
+}
+
+void wipeStorage (void)
+{
+    byte nullBuffer[PAGE_SIZE];
+    for (uint16_t i = 0; i< BLOCK_NUM*PAGE_IN_BLOCK; i++)
+    {
+        for (uint8_t j = 0; j< PAGE_IN_BLOCK; j++)
+    {
+        writePage(addr,i*j*PAGE_SIZE,nullBuffer,PAGE_SIZE);
+    }
+    DbgSerial.printf("EEPROM block %d wiped\n",i);
+    }
 }
 

@@ -39,10 +39,13 @@ int outside_temp;
 uint8_t fuel_ltr;
 uint8_t fuel_capacity;
 uint8_t fuel_low_level;
-int prevVal;
 char msgBuff[15];
 bool cluster_awake = false;
+bool clr = false;
 uint8_t odo_cnt;
+uint8_t btn_prev;
+
+bool halfspeed;
 
 
 //struct msg message[MsgNum];
@@ -55,21 +58,43 @@ void canISR() // get bus msg frame passed by a filter to FIFO0
   switch (can.id)
   {
   case ID_DIMMER:
-    if (can.rxData.bytes[DIMM_SENSOR_BYTE] && DIMM_SENSOR ) {
+    if (can.rxData.bytes[DIMM_SENSOR_BYTE] & DIMM_SENSOR ) {
       F_BCL = true;
     }
     else {
       F_BCL = false;
-      NextMsg();
     }
     break;
 
   case ID_STATUS:
-    if (can.rxData.bytes[STATUS_BYTE] && STATUS_AWAKE) cluster_awake = true;
+    if (can.rxData.bytes[STATUS_BYTE] & STATUS_AWAKE) cluster_awake = true;
     else cluster_awake = false;
-  
-  default:
     break;
+
+  case ID_INDICATOR:
+    if (can.rxData.bytes[0] & LOW_BRAKE_FLUID) F_BRAKE_FLUID = true; else F_BRAKE_FLUID = false;
+    if (can.rxData.bytes[0] & CHECK_PADS) F_BRAKE_PADS = true; else F_BRAKE_PADS = false;
+    if (can.rxData.bytes[0] & PARK_BRAKE) F_BRAKE_PARK = true; else F_BRAKE_PARK = false;
+
+    if (can.rxData.bytes[1] & DOOR_RF) F_DOOR_RF = true; else F_DOOR_RF = false;
+    if (can.rxData.bytes[1] & DOOR_LF) F_DOOR_LF = true; else F_DOOR_LF = false;
+    if (can.rxData.bytes[1] & DOOR_IND) F_DOOR = true; else F_DOOR = false;
+    if (can.rxData.bytes[1] & BOOT) F_DOOR_BOOT = true; else F_DOOR_BOOT = false;
+
+    uint8_t btn_current = (can.rxData.bytes[2] & BTN_PRESS_MSK);
+    uint8_t btn_inc;
+    if (btn_current< btn_prev) btn_inc = btn_current+ BTN_PRESS_MSK - btn_prev; //if overflow occured
+    else btn_inc = btn_current - btn_prev;
+    if (can.rxData.bytes[2] & BTN_LONGPRESS){ tripReset();}
+    while (btn_inc) 
+    {
+      NextMsg();
+      btn_inc --;
+    }
+    btn_prev = btn_current;
+    if (can.rxData.bytes[6] & LOCK_IND_BLINK) F_LOCK_BLINK = true; else F_LOCK_BLINK = false;
+    if (can.rxData.bytes[6] & LOCK_IND) F_LOCK = true; else F_LOCK = false;
+  break;
 
   }
 }
@@ -146,6 +171,7 @@ void SweepIndicators (void)
 void ClusterFramesSend (void){
   unsigned char Data[8];
   unsigned char Byte;
+  halfspeed = !halfspeed;
   /*//DRAFT
   Data[0] = 0;
   Data[1] = 0;
@@ -159,7 +185,8 @@ void ClusterFramesSend (void){
 
 
   //0x221400 //headlight and stuff
-  Data[0] = 0;
+  /*should be handled at second node*/
+  /*Data[0] = 0;
 
   Byte = 0;
   if (F_FOG_REAR)     Byte+=FOG_REAR;
@@ -179,7 +206,7 @@ void ClusterFramesSend (void){
   Data[5] = 0;
   Data[6] = 0;
   Data[7] = 0;
-  CanSend(0x221400, Data, 8);
+  CanSend(0x221400, Data, 8);*/
 
   //0x04214001 //RPM CLT and engine status
   Data[0] = 0;
@@ -229,7 +256,7 @@ void ClusterFramesSend (void){
   Data[0] = 0;
   if (F_EPAS_ERR) Byte+=EPAS_FAIL;
   Data[1] = Byte;
-  can.transmit(0x04214002, Data, 2);
+  CanSend(0x04214002, Data, 2);
 
   //0x04214006 ABS indicator
   Data[0] = 0;
@@ -253,6 +280,7 @@ void ClusterFramesSend (void){
   Data[2] = 0;
   Data[3] = odo_cnt;
   CanSend(0x04394000, Data, 4);
+
 
   //0x06214000 FUEL
   Byte = 0;
@@ -289,52 +317,56 @@ void ClusterFramesSend (void){
   Data[7] = 0;
   CanSend(0x06214000, Data, 8);
 
-  //0x0621401A Belt stuff. Die like a real man
-  Byte = 0;
-  if (F_AIRBAG_BLINK) Byte+=AIRBAG_BLINK;
-  if (F_AIRBAG) Byte+=AIRBAG_FAIL;
-  if (F_PASS_AIRBAG_BLINK) Byte+=PASS_AIRBAG_BLINK;
-  if (F_PASS_AIRBAG) Byte+=PASS_AIRBAG;
-  Data[0] = Byte;
+  
+  if (halfspeed) //theese can be transmitted at half frequency
+  {
+    //0x0621401A Belt stuff. Die like a real man
+      Byte = 0;
+      if (F_AIRBAG_BLINK) Byte+=AIRBAG_BLINK;
+      if (F_AIRBAG) Byte+=AIRBAG_FAIL;
+      if (F_PASS_AIRBAG_BLINK) Byte+=PASS_AIRBAG_BLINK;
+      if (F_PASS_AIRBAG) Byte+=PASS_AIRBAG;
+      Data[0] = Byte;
 
-  Byte = 0;
-  if (F_BELT) Byte+= BELT;
-  Data[1] = Byte;
-   Byte = 0;
-  if (F_BELT) Byte+= BELT;
-  Data[2] = Byte;
-  Data[3] = 0;
-  Data[4] = 0;
-  Data[5] = 0;
-  Data[6] = 0;
-  Data[7] = 0;
-  CanSend(0x0621401A, Data, 8);
+      Byte = 0;
+      if (F_BELT) Byte+= BELT;
+      Data[1] = Byte;
+      Byte = 0;
+      if (F_BELT) Byte+= BELT;
+      Data[2] = Byte;
+      Data[3] = 0;
+      Data[4] = 0;
+      Data[5] = 0;
+      Data[6] = 0;
+      Data[7] = 0;
+      CanSend(0x0621401A, Data, 8);
+      
+      //0x06314000 Charge
+      Byte = 0;
+      if (F_CHARGE) Byte+=CHARGE;
+      if (F_LOWBATT) Byte+= CHARGE_BLINK;
+      Data[0] = Byte;
+      Data[1] = 0;
+      Data[2] = 0;
+      Data[3] = 0;
+      Data[4] = 0;
+      Byte = 0;
+      if (F_CITY) Byte+=MODE_CITY;
+      if (F_SPORT) Byte+=MODE_SPORT;
+      Data[5] = Byte;
+      Data[6] = 0;
+      Data[7] = 0;
+      CanSend(0x06314000, Data, 8);  
 
-  //0x06314000 Charge
-  Byte = 0;
-  if (F_CHARGE) Byte+=CHARGE;
-  if (F_LOWBATT) Byte+= CHARGE_BLINK;
-  Data[0] = Byte;
-  Data[1] = 0;
-  Data[2] = 0;
-  Data[3] = 0;
-  Data[4] = 0;
-  Byte = 0;
-  if (F_CITY) Byte+=MODE_CITY;
-  if (F_SPORT) Byte+=MODE_SPORT;
-  Data[5] = Byte;
-  Data[6] = 0;
-  Data[7] = 0;
-  CanSend(0x06314000, Data, 8);  
-
-  //0x063D4000 outside temp (T+40)*2 FROM -39 t0 88
-  if (outside_temp>88) outside_temp = 88;
-  Byte = (outside_temp+40)*2;
-  Data[0] = Byte;
-  Data[1] = 0;
-  Data[2] = 0;
-  Data[3] = 0;
-  CanSend(0x063D4000, Data, 4);
+      //0x063D4000 outside temp (T+40)*2 FROM -39 t0 88
+      if (outside_temp>88) outside_temp = 88;
+      Byte = (outside_temp+40)*2;
+      Data[0] = Byte;
+      Data[1] = 0;
+      Data[2] = 0;
+      Data[3] = 0;
+      CanSend(0x063D4000, Data, 4);
+  }
 }
 
 
@@ -389,28 +421,30 @@ void ClrText (void)
 }
 
 void UpdateText (void){
-    prevMsg = currentMsg;
-    if (no_resp) currentMsg = msg_Timeout;
-    else if (!data_valid) currentMsg = msg_Corrupt;
-    if (currentMsg == Def)
+    if (no_resp) data.currentMsg = msg_Timeout;
+    else if (!data_valid) data.currentMsg = msg_Corrupt;
+    if (data.currentMsg == Def)
     {
-      ClrText();
+      if (!clr)
+      {
+        ClrText();
+        clr = true;
+      }
+      
     } 
     else {
-      //strcpy(msgBuff, message[currentMsg].message);
       ValueToText();
       CanText(msgBuff);      
     }
-    currentMsg = prevMsg;
-  //}
   
 }
 
 void ValueToText (void){
 
-  switch(currentMsg){
+  switch(data.currentMsg){
     //info messages
     case msg_tripA:
+      trip_counter = (int)(data.tripMeter/100);
       sprintf(msgBuff,"TRIP%6d.%dKM", trip_counter/10, trip_counter%10); //sprinf with floats uses shit ton of resources
       break;
     case msg_AvgCons:
@@ -420,10 +454,11 @@ void ValueToText (void){
       sprintf(msgBuff,"BATT%7d.%dV", voltage/10, avgF%10);
       break;
     case msg_CltT:
-      sprintf(msgBuff,"CLT%9doC", clt);
+      //sprintf(msgBuff,"CLT%9doC", clt);
+      sprintf(msgBuff,"COOLANT%5doC", clt);
       break;
     case msg_OilT:
-      sprintf(msgBuff,"OILT%9doC", oilt);
+      sprintf(msgBuff,"OIL T%7doC", oilt);
       break;
     //errors msg_Timeout, msg_Corrupt
     case msg_Timeout:
@@ -432,6 +467,10 @@ void ValueToText (void){
     case msg_Corrupt:
       sprintf(msgBuff," DATA CORRUPT");
       break;
+    default:
+      sprintf(msgBuff,"    WTF?!    ");
+      break;
+
     
   }
 
@@ -439,6 +478,10 @@ void ValueToText (void){
 
 void NextMsg (void){
   //prevMsg = currentMsg;
-  currentMsg ++;
-  if (currentMsg>=LAST_MSG) currentMsg = 0;
+  data.currentMsg ++;
+  if (data.currentMsg>LAST_MSG) 
+  {
+    data.currentMsg = 0;
+    clr = false;
+  }
 }

@@ -16,6 +16,7 @@
 
 
 //0x06214000
+/*Brake Fluid, Park brake, Doors, Locks - handled at secondary node*/
 //byte 0
 #define BCL_EN 0x08
 #define LOW_BRAKE_FLUID 0x40
@@ -40,7 +41,31 @@
 #define F_CUTOFF_UA 0x80
 //byte 7
 
-//ID 04214001
+//0x06214007 secondary node message
+#define ID_INDICATOR 0x06214007
+/*Brake Fluid, Park brake, Doors, Locks - handled at secondary node
+//byte 0
+#define LOW_BRAKE_FLUID 0x40
+#define CHECK_PADS 0x80
+#define PARK_BRAKE 0x20
+//byte 1
+#define DOOR_RF 0x04
+#define DOOR_LF 0x08
+#define BOOT 0x40
+#define DOOR_IND 0x80*/
+//byte 2
+#define BTN_LONGPRESS 0x80
+#define BTN_PRESS_MSK 0x7F
+//byte 3
+//byte 4
+//byte 5
+//byte 6
+/*#define LOCK_IND_BLINK 0x01
+#define LOCK_IND 0x02 //0x04
+//byte 7*/
+
+//ID 04214001 
+/*can be handled fully at main node*/
 //byte 0
 //byte 1
 #define GLOW_IND 0x10
@@ -73,6 +98,7 @@
 #define OIL_LEVEL_MSG 0x10
 
 //ID 04214006
+/*can be handled fully at main node*/
 //byte 0
 //byte 1
 #define EBD_FAIL 0x10
@@ -86,6 +112,7 @@
 //byte 7
 
 //ID 04394000
+/*can be handled fully at main node*/
 //byte 0 - 1
 //speed in km/h*14.9 or in miles/hr *24
 //byte 2
@@ -96,6 +123,7 @@
 #define KM_STEPS 0x42
 
 //ID 02214000
+/*should be handled at second node*/
 //byte 0
 //byte 1
 #define FOG_REAR 0x02
@@ -120,6 +148,7 @@
 
 
 //ID 063D4000 outside temp
+/*half speed*/
 //byte 0
 /*T, CELSIUS
 (T+40)*2 FROM -39 t0 88
@@ -133,10 +162,11 @@
 //byte 7
 
 //ID 0x06314000
+/*half speed*/
 //byte 0
-// 0x02 responds with 0x1* at 0x06314003
-// 0x04 responds with 0x2* at 0x06314003
-// 0x26 responds with 0x3* at 0x06314003 
+// 0x02 responds with 0x1* at 0x06314003 byte 5
+// 0x04 responds with 0x2* at 0x06314003 byte 5
+// 0x06 responds with 0x3* at 0x06314003 byte 5
 //somehow connected to dimmer, haven't figured it out yet 
 #define CHARGE 0x40
 #define CHARGE_BLINK 0x80
@@ -199,6 +229,7 @@
 //byte 7
 
 //ID 0x0621401a
+/*half speed*/
 //byte 0
 #define PASS_AIRBAG_BLINK 0x10 
 #define PASS_AIRBAG 0x20 

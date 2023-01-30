@@ -20,28 +20,18 @@ void InitializeSerial(void)
 {
     Serial2.begin(115200);
     DbgSerial.begin(115200);
-    DbgSerial.println("Serial OK");
-    packet_length = sendCommand(COMM_GET_LENGTH);
-    if (!packet_length)
-    {
-        
-    }
-    else 
-    {
-        packet_length+=2; // packet starts with 'n' '2'
-    }
+    DbgSerial.println("Serial INITIALIZING");
+    ping();
 }
 
 char sendCommand(char command)
 {
     Serial2.write(command);
-    char response = serialWait();
+    /*char response = serialWait();
     if (response == 0)
     {
-        DbgSerial.println("Serial to ECU TIMEOUT!");
-        no_resp = true;
         return 0;
-    }
+    }*/
     return 1;
 }
 
@@ -53,44 +43,68 @@ char serialWait(void)
         delay(5);
         cnt++;
         if (cnt>=SERIAL_TIMEOUT) {
-            return 0;
             no_resp = true;
+            return 0;            
         }
     }
     no_resp= false;
-    return (Serial2.available());
+    return 1;
 }
 
-
+void ping (void)
+{
+    sendCommand('S');
+    if (serialWait())
+    {
+        char buffer[30];
+        int i;
+        while(serialWait()){
+            buffer[i++] = Serial2.read();
+        }
+        char msg[i-1];
+        strcpy (msg, buffer);
+        DbgSerial.println(msg);
+    }
+    else DbgSerial.println("No ping");
+}
 
 void serialRequestData (uint16_t offset, uint16_t length)
 {
-    
-    if(sendCommand(COMM_REQUEST_DATA)) request_success = true;
-    else {
-        request_success = false;
-        return;
-    }
+    sendCommand(COMM_REQUEST_DATA);
     sendCommand(tsCanId);
     sendCommand(0x30);
-    sendCommand(highByte(offset));
     sendCommand(lowByte(offset));
-    sendCommand(highByte(length));
+    sendCommand(highByte(offset));
     sendCommand(lowByte(length));
+    sendCommand(highByte(length));    
+    if (!serialWait())
+    {
+        request_success = false;
+        DbgSerial.println("Timeout");
+        return;
+    }
     length+=2;
     char packet[length]; //response should start with 'r' 0x30
     uint8_t index = 0;
     while (index<length)
     {
         //Read the next available byte in the serial receive buffer
-        if (!serialWait()) return;
-        packet[index++] = Serial.read();
+        //if (!serialWait()) return;
+        serialWait();
+        packet[index++] = Serial2.read();
     }
     //sanity check - packet should begin with 'r' 0x30 and be the correct length
+    while (Serial2.available()&& index<100) 
+    {
+        Serial2.read(); //clear rx buffer
+        index++;
+    }
     if (packet[0]!='r' || packet[1]!=0x30 || Serial2.available()) 
     {
         data_valid = false;
-        return; 
+        DbgSerial.println("Wrong response!");
+        DbgSerial.printf("[0] = %c\t[1] = 0x%2X\t L= %d I= %d\n",packet[0],packet[1], length, index);
+        //return; 
     }
     else  //if everything seems fine - parse the packet
     {   
@@ -128,6 +142,7 @@ void serialRequestData (uint16_t offset, uint16_t length)
             break;
         }        
         setFlags();
+        
     }
 }
 
@@ -139,6 +154,7 @@ void serialGetData (void)
    serialRequestData(OFF4, DLC4);
    serialRequestData(OFF5, DLC5);
    setFlags();
+   
 }
 
 void setFlags(void)
@@ -198,4 +214,9 @@ void tripCalc (void)
     }
     time = millis();
 
+}
+
+void tripReset (void)
+{
+    data.tripMeter = 0;
 }
