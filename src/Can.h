@@ -36,7 +36,7 @@ extern uint8_t fuel_capacity;
 extern uint8_t fuel_low_level;
 extern int trip_counter;
  extern int outside_temp;
-enum msgtype {Def, msg_tripA, msg_AvgCons, msg_BattV, msg_CltT, msg_OilT, msg_Timeout, msg_Corrupt, MsgNum};
+enum msgtype {Def, msg_tripA, msg_tripL, msg_AvgCons, msg_InstCons, msg_BattV, msg_CltT, msg_OilT, msg_Timeout, msg_Corrupt, msg_EECorrupt, MsgNum};
 #define LAST_MSG msg_OilT
 extern bool cluster_awake;
 extern uint8_t odo_cnt;

@@ -10,11 +10,17 @@ bool sync_loss;
 bool no_resp;
 bool data_valid;
 uint16_t MAP;
-uint16_t PW;
-uint32_t time;
+float PW;
+uint16_t RPM;
+uint16_t avgF_prev;
+uint16_t instF_prev;
+float alfa = 0.5;
+uint32_t time, time_prev;
 float trip;
 float odo_tmp;
-
+double fuelCC;
+uint8_t odoArr[] = {0,16,32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240 };
+uint8_t odoIndex;
 
 void InitializeSerial(void)
 {
@@ -61,7 +67,7 @@ void ping (void)
         while(serialWait()){
             buffer[i++] = Serial2.read();
         }
-        char msg[i-1];
+        char msg[i-2];
         strcpy (msg, buffer);
         DbgSerial.println(msg);
     }
@@ -112,18 +118,20 @@ void serialRequestData (uint16_t offset, uint16_t length)
         switch (offset)
         {
         case OFF1:{ 
-            MAP = packet[INDEX_MAP] & (packet[INDEX_MAP+1]<<8);
+            timeCalc();
+            MAP = packet[INDEX_MAP] | (packet[INDEX_MAP+1]<<8);
             clt = packet[INDEX_CLT] - CALIBRATION_TEMPERATURE_OFFSET;
             voltage = packet[INDEX_VOLTAGE];
-            rpm = packet[INDEX_RPM] & (packet[INDEX_RPM+1]<<8);
-            PW = packet[INDEX_PW] & (packet[INDEX_PW+1]<<8);}
+            rpm = packet[INDEX_RPM] | (packet[INDEX_RPM+1]<<8);
+            PW = (packet[INDEX_PW] | (packet[INDEX_PW+1]<<8))/10;
+            fuelCalc();}
             break;
         case OFF2:{
             outside_temp = packet[INDEX_AMBIENT] - CALIBRATION_TEMPERATURE_OFFSET;
             oilt = packet[INDEX_OILT] - CALIBRATION_TEMPERATURE_OFFSET;}
             break;
         case OFF3:{
-            int temp_speed =  packet[INDEX_VSS] & (packet[INDEX_VSS+1]<<8); //speeds beyond 255 kmh are unlikely
+            int temp_speed =  packet[INDEX_VSS] | (packet[INDEX_VSS+1]<<8); //speeds beyond 255 kmh are unlikely
             if (temp_speed>255) speed = 255;
             else speed = temp_speed;
             tripCalc();
@@ -137,8 +145,8 @@ void serialRequestData (uint16_t offset, uint16_t length)
             break;
         case OFF5:{
             uint8_t status = packet[INDEX_SPARK];
-            if(status & LIMITER_MASK)   rev_limiter = true;//this flag is set if ANY rev limiter or spark cut is active
-            if(status & SYNC_MASK)      sync_loss = true; }
+            if(status & LIMITER_MASK)   rev_limiter = true; else rev_limiter = false;//this flag is set if ANY rev limiter or spark cut is active
+            if(status & SYNC_MASK)      sync_loss = true; else sync_loss = false; }
             break;
         }        
         setFlags();
@@ -168,14 +176,12 @@ void setFlags(void)
         if (rev_limiter){
             F_AIRBAG_BLINK = true;
             F_PASS_AIRBAG_BLINK = true;
-            F_GLOW = true;
             F_GENERAL_WARNING = true;
             F_LOCK_BLINK = true;
             }
         else{
             F_AIRBAG_BLINK = false;
             F_PASS_AIRBAG_BLINK = false;
-            F_GLOW = false;
             F_GENERAL_WARNING = false;
             F_LOCK_BLINK = false;
             }
@@ -203,20 +209,62 @@ void setFlags(void)
 
 void tripCalc (void)
 {
-    time = millis() - time;
-    float inc = (speed/3.6)*(time/1000); //speed in m/s * time in s
+    float inc = ((float)speed/3.6)*((float)time/1000); //speed in m/s * time in s
     data.tripMeter+=inc;
     odo_tmp += inc;
-    if (odo_tmp>= ODO_TICK) 
+    if (odo_tmp> 160) 
     {
-        data.odo_cnt++;
-        odo_tmp-= ODO_TICK;
+        if (odoIndex>=15) odoIndex = 0;
+        else odoIndex++;
+        odo_cnt = odoArr[odoIndex];
+        odo_tmp -= 160;
     }
-    time = millis();
 
+}
+void timeCalc (void)
+{
+    time = millis() - time_prev;
+    time_prev = millis();
+}
+void fuelCalc (void)
+{
+    
+    uint8_t injN=6;
+    uint8_t nSquirts = 2;
+    uint8_t div = 2;
+    uint16_t baseFlow = 296;
+    uint16_t basePressure = 270;
+
+    float deadtime = 1;
+
+    float fuelPres = basePressure + (MAP-100);//kpa
+    float flowCor = baseFlow * sqrt(fuelPres/basePressure); //cc/min 
+    double squirtsPerEvent = (rpm*time/60000) * (injN * nSquirts / div);
+    //                        RPS       Ms to S             3 injections
+    //                      {Revolutions per event}           per revolution
+    uint32_t squirtsPerHr =    rpm * 60 * injN * nSquirts / div;
+    //                          RPH
+    
+    double fuelPerSquirt = ((PW-deadtime)/60000) * flowCor;
+    //                      (ms         to min) * cc/min = cc
+    //data.CumulativeFuel += squirtsPerEvent * fuelPerSquirt;
+    fuelCC += squirtsPerEvent * fuelPerSquirt;
+    if (fuelCC>= 100) 
+    {
+        data.CumulativeFuel ++;
+        fuelCC-=100;
+    }
+    double lhrCons = (squirtsPerHr * fuelPerSquirt) / 100000.0; //TODO  - find out where excessive 00 came from - MUST BE 1000!
+    instF = (int)(lhrCons*10);
+    instF = alfa*instF + (1-alfa)* instF_prev;
+    instF_prev = instF;
+    double avgTemp = (data.CumulativeFuel/100) / (data.tripMeter/100000);
+    avgF = int(avgTemp);
+    DbgSerial.printf("/nFuel total - %d, avg - %d, sqirts - %d", (int)data.CumulativeFuel, avgF, (int)squirtsPerEvent);
 }
 
 void tripReset (void)
 {
     data.tripMeter = 0;
+    data.CumulativeFuel = 0;
 }

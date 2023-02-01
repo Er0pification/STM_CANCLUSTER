@@ -20,7 +20,7 @@ typedef union{
         uint8_t currentMsg; //3
         uint8_t odo_cnt; //4
         float tripMeter; //8
-        double fuelConsumedMl; //16
+        double CumulativeFuel; //16
         uint8_t unused1; //17
         uint8_t unused2; //18
         uint8_t unused3; //19
@@ -47,6 +47,8 @@ void initializeStorage (void);
 uint8_t getAddr (void);
 void writeByte(uint8_t deviceaddress, uint16_t eeaddress, byte data);
 void writePage (uint8_t deviceaddress, uint16_t eeaddress, uint8_t *buffer, uint8_t length);
+void wipePage (uint8_t deviceaddress, uint16_t eeaddress, uint8_t length);
+byte readByte(uint8_t deviceaddress, uint16_t eeaddress);
 byte readByte(uint8_t deviceaddress, uint16_t eeaddress);
 void readPage(uint8_t deviceaddress, uint16_t eeaddress, uint8_t * buffer, uint8_t length);
 byte checksumCalculate (uint8_t *buffer);

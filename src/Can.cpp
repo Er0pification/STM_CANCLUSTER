@@ -28,8 +28,8 @@ eXoCAN can;
 uint8_t currentMsg, prevMsg;
 int clt;
 int oilt;
-int avgF = 145;
-int instF = 276;
+int avgF;
+int instF;
 int voltage;
 uint16_t rpm;
 uint8_t speed;
@@ -44,6 +44,7 @@ bool cluster_awake = false;
 bool clr = false;
 uint8_t odo_cnt;
 uint8_t btn_prev;
+uint8_t prev_msg;
 
 bool halfspeed;
 
@@ -104,51 +105,6 @@ void InitializeCan (){
   //can.filterMask16Init(0, 0, 0x7ff, 0, 0);                // filter bank 0, filter 0: don't pass any, flt 1: pass all msgs
     can.attachInterrupt(canISR);
 
-    
-    
-   /* strcpy(message[tripA].message, "TRIP        KM");
-    message[tripA].pos = 11;
-    message[tripA].isInt = false;
-    message[tripA].maxval = 99999;
-    message[tripA].value = &trip_counter;
-
-    strcpy(message[AvgCons].message, "AVG      L/100");
-    message[AvgCons].pos = 8;
-    message[AvgCons].isInt = false;
-    message[AvgCons].maxval = 999;
-    message[AvgCons].value = &avgF;
-
-    strcpy(message[InstCons].message, "INST     L/100");
-    message[InstCons].pos = 8;
-    message[InstCons].isInt = false;
-    message[InstCons].maxval = 999;
-    message[InstCons].value = &instF;
-    
-    strcpy(message[BattV].message, "BATT         V");
-    message[BattV].pos = 12;
-    message[BattV].isInt = false;
-    message[BattV].maxval = 200;
-    message[BattV].value = &voltage;
-
-    strcpy(message[CltT].message, "CLT         oC");
-    message[CltT].pos = 11;
-    message[CltT].isInt = true;
-    message[CltT].maxval = 140;
-    message[CltT].value = &clt;
-
-    strcpy(message[OilT].message, "OILT        oC");
-    message[OilT].pos = 11;
-    message[OilT].isInt = true;
-    message[OilT].maxval = 160;
-    message[OilT].value = &oilt;
-
-    strcpy(message[Timeout].message, " ECU TIMEOUT! ");
-    message[Timeout].pos = NO_DATA;
-
-    strcpy(message[Corrupt].message, " DATA CORRUPT ");
-    message[Corrupt].pos = NO_DATA;
-    currentMsg = tripA;
-    */
    currentMsg = msg_tripA;
 
 }
@@ -421,8 +377,11 @@ void ClrText (void)
 }
 
 void UpdateText (void){
+    prev_msg = data.currentMsg;
     if (no_resp) data.currentMsg = msg_Timeout;
     else if (!data_valid) data.currentMsg = msg_Corrupt;
+    else if (eeprom_corrupt) data.currentMsg = msg_EECorrupt;
+    else data.currentMsg = prev_msg;
     if (data.currentMsg == Def)
     {
       if (!clr)
@@ -447,8 +406,22 @@ void ValueToText (void){
       trip_counter = (int)(data.tripMeter/100);
       sprintf(msgBuff,"TRIP%6d.%dKM", trip_counter/10, trip_counter%10); //sprinf with floats uses shit ton of resources
       break;
+    case msg_tripL:
+      trip_counter = (int)(data.CumulativeFuel/100);
+      sprintf(msgBuff,"CONSUMED%3d.%dL", trip_counter/10, trip_counter%10); //sprinf with floats uses shit ton of resources
+      break;
     case msg_AvgCons:
-      sprintf(msgBuff,"AVG%4d.%dL/100", avgF/10, avgF%10);
+      if (avgF>500) sprintf(msgBuff,"AVG  --.-L/100", avgF/10, avgF%10);
+      else sprintf(msgBuff,"AVG%4d.%dL/100", avgF/10, avgF%10);
+      break;
+    case msg_InstCons:
+      if (speed<=5)
+      sprintf(msgBuff,"INST%3d.%dL/HR ", instF/10, instF%10);
+      else
+      {
+        instF = instF * 100 / speed;
+        sprintf(msgBuff,"INST%3d.%dL/100", instF/10, instF%10);
+      }      
       break;
     case msg_BattV:
       sprintf(msgBuff,"BATT%7d.%dV", voltage/10, avgF%10);
@@ -462,10 +435,13 @@ void ValueToText (void){
       break;
     //errors msg_Timeout, msg_Corrupt
     case msg_Timeout:
-      sprintf(msgBuff," ECU TIMEOUT! ");
+      sprintf(msgBuff," COMM TIMEOUT!");
       break;
     case msg_Corrupt:
-      sprintf(msgBuff," DATA CORRUPT");
+      sprintf(msgBuff,"  COMM ERROR! ");
+      break;
+    case msg_EECorrupt:
+      sprintf(msgBuff," EEPROM FAIL!");
       break;
     default:
       sprintf(msgBuff,"    WTF?!    ");

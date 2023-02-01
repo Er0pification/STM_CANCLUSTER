@@ -40,8 +40,8 @@
 #define OFF5 31 //currentStatus.spark;
 #define DLC5 1
 #define INDEX_SPARK PREFIX
-#define LIMITER_MASK 0b11111000
-#define SYNC_MASK 0b00000001
+#define LIMITER_MASK 0x0F
+#define SYNC_MASK 0x80
 
 #ifndef KM_STEPS
 #define ODO_TICK 15.15 //1000m / 0x42
@@ -63,7 +63,7 @@ extern uint8_t battCorrection;
 extern uint8_t battery10;
 extern uint8_t O2;
 extern uint16_t RPM;
-extern uint16_t PW;
+extern float PW;
 extern uint8_t status_spark;
 extern uint8_t status_protection;
 extern uint16_t VSS;
@@ -78,7 +78,6 @@ extern uint8_t fuel_capacity;
 extern uint8_t fuel_warning;
 
 extern HardwareSerial DbgSerial;
-
 void InitializeSerial(void);
 char sendCommand (char);
 char serialWait (void);
@@ -86,6 +85,8 @@ void serialRequestData(uint16_t, uint16_t);
 void serialGetData (void);
 void setFlags (void);
 void tripCalc (void);
+void timeCalc (void);
+void fuelCalc (void);
 void tripReset (void);
 void ping (void);
 #endif

@@ -36,6 +36,7 @@ void setup()
     setBackupRegister(1,0x69);
     setBackupRegister(2,0x420);*/
     
+    
   
   SweepIndicators();
 }
@@ -49,7 +50,6 @@ void loop()
     ClusterFramesSend();
     UpdateText();
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-    
     while (1)
     {
         if (millis() - ms >= TIMEFRAME)
