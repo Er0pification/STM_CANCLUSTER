@@ -7,10 +7,11 @@
 //#include "base64.h"
 //#include "Screenmsg.h"
 #include "Can.h"
-#include "serialcomm.h"
+//#include "serialcomm.h"
 #include "storage.h"
+#include "hardware.h"
 #define LED PC13
-#define TIMEFRAME 200
+#define TIMEFRAME 50 // should be 200
 #define EEPROM_TIME 15000/TIMEFRAME //15s
 
 
@@ -26,11 +27,11 @@ void setup()
     pinMode(LED, OUTPUT);
     digitalWrite(LED, LOW);
     delay(500);
-    SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);   // This one was missing... 
-    enableBackupDomain();
+    digitalWrite(LED, HIGH);
+    //SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);   // This one was missing... 
+    //enableBackupDomain();
     InitializeCan();
     ClrText();
-    InitializeSerial();
     initializeStorage();
     /*setBackupRegister(3,0x1488);
     setBackupRegister(1,0x69);
@@ -38,7 +39,7 @@ void setup()
     
     
   
-  SweepIndicators();
+  //SweepIndicators();
 }
 
 
@@ -46,16 +47,17 @@ void loop()
 {   
     
     ms = millis();
-    serialGetData();
-    ClusterFramesSend();
-    UpdateText();
-    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+    
     while (1)
     {
         if (millis() - ms >= TIMEFRAME)
         {
           ee_tick++;
-          break;
+          //serialGetData();
+    ClusterFramesSend();
+   UpdateText();
+    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+    ms = millis();
         } 
     }
     if (ee_tick>=EEPROM_TIME)
@@ -63,6 +65,7 @@ void loop()
       ee_tick = 0;
       storeData();
     }
+    delay(50);
     
 
 }

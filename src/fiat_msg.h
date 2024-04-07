@@ -8,7 +8,7 @@
 //byte 6
 //byte 7
 
-//0x04214002
+//0x04214002 // handled at ecu
 //dlc 2
 //byte 0
 //byte 1
@@ -16,7 +16,7 @@
 
 
 //0x06214000
-/*Brake Fluid, Park brake, Doors, Locks - handled at secondary node*/
+//Brake Fluid, Park brake, Doors, Locks - handled at ECU
 //byte 0
 #define BCL_EN 0x08
 #define LOW_BRAKE_FLUID 0x40
@@ -39,30 +39,11 @@
 #define LOCK_IND_BLINK 0x01
 #define LOCK_IND 0x02 //0x04
 #define F_CUTOFF_UA 0x80
-//byte 7
+//byte 7 
 
-//0x06214007 secondary node message
-#define ID_INDICATOR 0x06214007
-/*Brake Fluid, Park brake, Doors, Locks - handled at secondary node
-//byte 0
-#define LOW_BRAKE_FLUID 0x40
-#define CHECK_PADS 0x80
-#define PARK_BRAKE 0x20
-//byte 1
-#define DOOR_RF 0x04
-#define DOOR_LF 0x08
-#define BOOT 0x40
-#define DOOR_IND 0x80*/
-//byte 2
-#define BTN_LONGPRESS 0x80
-#define BTN_PRESS_MSK 0x7F
-//byte 3
-//byte 4
-//byte 5
-//byte 6
-/*#define LOCK_IND_BLINK 0x01
-#define LOCK_IND 0x02 //0x04
-//byte 7*/
+
+
+
 
 //ID 04214001 
 /*can be handled fully at main node*/
@@ -97,7 +78,7 @@
 #define OIL_CHANGE 0x02
 #define OIL_LEVEL_MSG 0x10
 
-//ID 04214006
+//ID 04214006 
 /*can be handled fully at main node*/
 //byte 0
 //byte 1
@@ -112,15 +93,18 @@
 //byte 7
 
 //ID 04394000
+#define ID_TRIP 0x04394000
 /*can be handled fully at main node*/
 //byte 0 - 1
 //speed in km/h*14.9 or in miles/hr *24
 //byte 2
 // allways 0?
 //byte 3
+#define BYTE_TRIP 3
+
 //trip counter
-//0x42 for each km
-#define KM_STEPS 0x42
+//0x01 for each 10m
+
 
 //ID 02214000
 /*should be handled at second node*/
@@ -147,7 +131,7 @@
 //byte 5// do not care....
 
 
-//ID 063D4000 outside temp
+//ID 063D4000 outside temp  HANDLED ON ECU 
 /*half speed*/
 //byte 0
 /*T, CELSIUS
@@ -191,7 +175,7 @@
 //byte 4
 //byte 5
 #define DIMM_SENSOR_BYTE 5
-#define DIMM_SENSOR 0x08 // in dark condition, NULL if bright
+#define DIMM_SENSOR 0x08 // in dark condition, 0x00 if bright
 //byte 6
 //byte 7
 
@@ -255,3 +239,26 @@
 #define MAX_SPEED 240
 #define MAX_RPM 8000
 
+
+#define ID_ECU_PACKET1 0x00AA0001
+    //f_cons = getOutput("totalFuelConsumption") -- in grams
+	//Data[0] = f_cons>>8
+	//Data[1] = f_cons&0xff 
+    //760g/liter
+    //2 clt+40
+    //3 oilt+40
+    //4 vcc*10
+    //5 amb+40
+    //6 vss
+    //7 fuel level
+
+
+    #define ID_ECU_PACKET2 0x00AA0002
+	//Data[0] = rpm>>8
+	//Data[1] = rpm&0xff
+    //2 
+    //3 
+    //4 
+    //5 
+    //6 
+    //7 

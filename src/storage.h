@@ -2,7 +2,6 @@
 #define STORAGE_H
 
 #include<arduino.h>
-#include "serialcomm.h"
 
 #define MEM_SIZE 32768
 #define PAGE_SIZE 64
@@ -20,7 +19,7 @@ typedef union{
         uint8_t currentMsg; //3
         uint8_t odo_cnt; //4
         float tripMeter; //8
-        double CumulativeFuel; //16
+        double CumulativeFuel; //16,  in cc
         uint8_t unused1; //17
         uint8_t unused2; //18
         uint8_t unused3; //19

@@ -14,12 +14,12 @@ void initializeStorage (void)
     Wire.setSDA(PB11);
     Wire.setSCL(PB10);
     Wire.begin();
-    DbgSerial.println("Initializing EEPROM");
+    //DbgSerial.println("Initializing EEPROM");
     if (getAddr()) 
     {
-        DbgSerial.print("Device EEPROM at ");
-        DbgSerial.printf("0x%2X", addr);
-        DbgSerial.println(" ");
+        //DbgSerial.print("Device EEPROM at ");
+        //DbgSerial.printf("0x%2X", addr);
+        //DbgSerial.println(" ");
         //wipeStorage();
         if (WLfindFreshBlock()!=0xffff)
         {
@@ -28,7 +28,7 @@ void initializeStorage (void)
     }
     else
     {
-        DbgSerial.print("No EEPROM found!");
+        //DbgSerial.print("No EEPROM found!");
         eeprom_corrupt = true;
     }
     
@@ -45,7 +45,7 @@ uint8_t getAddr (void)
         addr++;
     }
     addr = 0;
-    DbgSerial.println("No Device found!");
+    //DbgSerial.println("No Device found!");
     return 0; //nothing found
     
 }
@@ -65,12 +65,12 @@ void writePage (uint8_t deviceaddress, uint16_t eeaddress, uint8_t *buffer, uint
     Wire.beginTransmission(deviceaddress);
     Wire.write((uint8_t)(eeaddress >> 8));
     Wire.write((uint8_t)(eeaddress & 0xFF));
-    DbgSerial.printf ("Writing EEPROM:\n");
+    //DbgSerial.printf ("Writing EEPROM:\n");
     for (uint8_t i = 0; i<length; i++){
             Wire.write(buffer[i]);
-            DbgSerial.printf (" 0x%2X ", buffer[i]);
+            //DbgSerial.printf (" 0x%2X ", buffer[i]);
     }
-    DbgSerial.printf ("\n");
+   // DbgSerial.printf ("\n");
     Wire.endTransmission();
 }
 
@@ -120,12 +120,12 @@ void readPage(uint8_t deviceaddress, uint16_t eeaddress, uint8_t * buffer, uint8
   //if (Wire.available()) 
   //buffer[0] = Wire.read();
   //Wire.requestFrom(deviceaddress,1);
-  DbgSerial.printf ("Reading EEPROM:\n");
+ // DbgSerial.printf ("Reading EEPROM:\n");
   for (uint8_t i = 0; i<length; i++){
         while (!Wire.available()); buffer[i] = Wire.read();
-       DbgSerial.printf (" 0x%2X ", buffer[i]);
+       //DbgSerial.printf (" 0x%2X ", buffer[i]);
     }
-    DbgSerial.printf ("\n");
+    //DbgSerial.printf ("\n");
 }
 
 
@@ -154,13 +154,13 @@ uint16_t WLfindFreshBlock(void)
         if (block_write_cnt<255)
         {
             block_num = i;
-            DbgSerial.printf("Wear levelling - reading block no. %d\n", block_num);
+            //DbgSerial.printf("Wear levelling - reading block no. %d\n", block_num);
             return block_num;
         }
     }
     //if  end of wear-levelled memory area is reached, but no "fresh" block was found -> something is wrong, eeprom may be corrupted;
-    DbgSerial.println("Wear levelling ERROR! No fresh blocks found!");
-    DbgSerial.println("Wiping EEPROM...");
+    //DbgSerial.println("Wear levelling ERROR! No fresh blocks found!");
+    //DbgSerial.println("Wiping EEPROM...");
     wipeStorage();
     eeprom_corrupt = true;
     return 0xffff;
@@ -180,12 +180,12 @@ void readBlock(void)
     DbgSerial.println("\n");*/
     if (checksumCalculate(data.bytearray)) //checksum check
     {   
-        DbgSerial.println("Checksum PASS.");
+        //DbgSerial.println("Checksum PASS.");
         
     }
     else  //if checksum error
     {
-        DbgSerial.println("Checksum FAIL");
+       // DbgSerial.println("Checksum FAIL");
         eeprom_corrupt= true;
         data.currentMsg = 0;
         data.tripMeter = 0;
@@ -209,7 +209,7 @@ void storeData(void)
         {
             block_num++;
         }
-        DbgSerial.printf("Wear levelling - block retiring, switching to block no. %d\n", block_num);
+        //DbgSerial.printf("Wear levelling - block retiring, switching to block no. %d\n", block_num);
     }
     else
     {
@@ -218,7 +218,7 @@ void storeData(void)
         checksumCalculate(data.bytearray);
         writePage(addr,block_num*BLOCK_SIZE, data.bytearray, BLOCK_SIZE);
     
-    DbgSerial.printf("Wear levelling - block %d writes count = %d\n", block_num, data.WL_cnt);
+    //DbgSerial.printf("Wear levelling - block %d writes count = %d\n", block_num, data.WL_cnt);
     
 }
 
@@ -227,7 +227,7 @@ void wipeStorage (void)
     for (uint16_t i = 0; i< BLOCK_NUM; i++)
     {
         wipePage(addr,i*BLOCK_SIZE,BLOCK_SIZE);
-        DbgSerial.printf("EEPROM block %d wiped\n",i);
+        //DbgSerial.printf("EEPROM block %d wiped\n",i);
     }
     
 }

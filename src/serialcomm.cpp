@@ -1,6 +1,5 @@
 #include "serialcomm.h"
 #include "flags.h"
-HardwareSerial Serial2(USART2); 
 HardwareSerial DbgSerial(USART1);
 uint8_t packet_length = 0;
 
@@ -15,64 +14,19 @@ uint16_t RPM;
 uint16_t avgF_prev;
 uint16_t instF_prev;
 float alfa = 0.5;
-uint32_t time, time_prev;
-float trip;
-float odo_tmp;
-double fuelCC;
-uint8_t odoArr[] = {0,16,32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240 };
-uint8_t odoIndex;
+
 
 void InitializeSerial(void)
 {
-    Serial2.begin(115200);
-    DbgSerial.begin(115200);
-    DbgSerial.println("Serial INITIALIZING");
-    ping();
+    //DbgSerial.begin(115200);
+    //DbgSerial.println("Serial INITIALIZING");
 }
 
-char sendCommand(char command)
-{
-    Serial2.write(command);
-    /*char response = serialWait();
-    if (response == 0)
-    {
-        return 0;
-    }*/
-    return 1;
-}
 
-char serialWait(void)
-{
-    uint8_t cnt;
-    while (Serial2.available() == 0)
-    {
-        delay(5);
-        cnt++;
-        if (cnt>=SERIAL_TIMEOUT) {
-            no_resp = true;
-            return 0;            
-        }
-    }
-    no_resp= false;
-    return 1;
-}
 
-void ping (void)
-{
-    sendCommand('S');
-    if (serialWait())
-    {
-        char buffer[30];
-        int i;
-        while(serialWait()){
-            buffer[i++] = Serial2.read();
-        }
-        char msg[i-2];
-        strcpy (msg, buffer);
-        DbgSerial.println(msg);
-    }
-    else DbgSerial.println("No ping");
-}
+
+
+
 
 void serialRequestData (uint16_t offset, uint16_t length)
 {
@@ -107,9 +61,9 @@ void serialRequestData (uint16_t offset, uint16_t length)
     }
     if (packet[0]!='r' || packet[1]!=0x30 || Serial2.available()) 
     {
-        data_valid = false;
-        DbgSerial.println("Wrong response!");
-        DbgSerial.printf("[0] = %c\t[1] = 0x%2X\t L= %d I= %d\n",packet[0],packet[1], length, index);
+        data_valid = true;
+        //DbgSerial.println("Wrong response!");
+        //DbgSerial.printf("[0] = %c\t[1] = 0x%2X\t L= %d I= %d\n",packet[0],packet[1], length, index);
         //return; 
     }
     else  //if everything seems fine - parse the packet
@@ -156,12 +110,16 @@ void serialRequestData (uint16_t offset, uint16_t length)
 
 void serialGetData (void)
 {
-   serialRequestData(OFF1, DLC1);
-   serialRequestData(OFF2, DLC2);
-   serialRequestData(OFF3, DLC3);
-   serialRequestData(OFF4, DLC4);
-   serialRequestData(OFF5, DLC5);
+   //clt = 90;
+    voltage = 140;
+            rpm = 2500;
+            outside_temp = 21;
+            oilt = 95;
+            speed = 100;
+            tripCalc();
+            fuel = 50;
    setFlags();
+   data_valid = true;
    
 }
 
@@ -207,30 +165,12 @@ void setFlags(void)
     else  {F_FUEL_VERYLOW = false; F_FUEL_LOW = false;}
 }
 
-void tripCalc (void)
-{
-    float inc = ((float)speed/3.6)*((float)time/1000); //speed in m/s * time in s
-    data.tripMeter+=inc;
-    odo_tmp += inc;
-    if (odo_tmp> 160) 
-    {
-        if (odoIndex>=15) odoIndex = 0;
-        else odoIndex++;
-        odo_cnt = odoArr[odoIndex];
-        odo_tmp -= 160;
-    }
 
-}
-void timeCalc (void)
-{
-    time = millis() - time_prev;
-    time_prev = millis();
-}
 void fuelCalc (void)
 {
     
     uint8_t injN=6;
-    uint8_t nSquirts = 2;
+    uint8_t nSquirts = 1;
     uint8_t div = 2;
     uint16_t baseFlow = 296;
     uint16_t basePressure = 270;
@@ -239,7 +179,7 @@ void fuelCalc (void)
 
     float fuelPres = basePressure + (MAP-100);//kpa
     float flowCor = baseFlow * sqrt(fuelPres/basePressure); //cc/min 
-    double squirtsPerEvent = (rpm*time/60000) * (injN * nSquirts / div);
+    //double squirtsPerEvent = (rpm*time/60000) * (injN * nSquirts / div);
     //                        RPS       Ms to S             3 injections
     //                      {Revolutions per event}           per revolution
     uint32_t squirtsPerHr =    rpm * 60 * injN * nSquirts / div;
@@ -247,20 +187,15 @@ void fuelCalc (void)
     
     double fuelPerSquirt = ((PW-deadtime)/60000) * flowCor;
     //                      (ms         to min) * cc/min = cc
-    //data.CumulativeFuel += squirtsPerEvent * fuelPerSquirt;
-    fuelCC += squirtsPerEvent * fuelPerSquirt;
-    if (fuelCC>= 100) 
-    {
-        data.CumulativeFuel ++;
-        fuelCC-=100;
-    }
+    data.CumulativeFuel += squirtsPerEvent * fuelPerSquirt;
     double lhrCons = (squirtsPerHr * fuelPerSquirt) / 100000.0; //TODO  - find out where excessive 00 came from - MUST BE 1000!
     instF = (int)(lhrCons*10);
     instF = alfa*instF + (1-alfa)* instF_prev;
     instF_prev = instF;
-    double avgTemp = (data.CumulativeFuel/100) / (data.tripMeter/100000);
-    avgF = int(avgTemp);
-    DbgSerial.printf("/nFuel total - %d, avg - %d, sqirts - %d", (int)data.CumulativeFuel, avgF, (int)squirtsPerEvent);
+    double avgTemp = (data.CumulativeFuel/1000) / (data.tripMeter/100000);
+    //                (        cc    to Liters) / (     meters to 100km ) = ltr/100km
+        avgF = int(avgTemp*10);
+    //DbgSerial.printf("/nFuel total - %d, avg - %d, sqirts - %d", (int)data.CumulativeFuel, avgF, (int)squirtsPerEvent);
 }
 
 void tripReset (void)
