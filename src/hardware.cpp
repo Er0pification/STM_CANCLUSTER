@@ -1,5 +1,6 @@
 #include "hardware.h"
 #include "flags.h"
+//#include "GyverBME280.h"
 enum InputName{
     OilPress,
     LowBrakeFluid,
@@ -11,7 +12,10 @@ enum InputName{
     RTURN,
     InputNumber
 };
-extern struct Input inp[InputNumber];
+//extern struct Input inp[InputNumber];
+Input inp[InputNumber];
+//GyverBME280 bmp;
+//uint16_t BARO;
 
 void initialize_inputs (void)
 {
@@ -37,13 +41,17 @@ void initialize_inputs (void)
     inp[Highbeam].FLAG = &F_HIBEAM;
 
     inp[Sidelamp].PIN = DI7;
+    inp[Sidelamp].IS_INVERTED = false;
     inp[Sidelamp].FLAG  = &F_SIDELAMP;
 
     inp[LTURN].PIN = DI8;
+    inp[LTURN].IS_INVERTED = false;
     inp[LTURN].FLAG = &F_LTURN;
 
     inp[RTURN].PIN = DI9;
+    inp[RTURN].IS_INVERTED = false;
     inp[RTURN].FLAG = &F_RTURN;
+    //initializeBaro();
 }
 
 void read_inputs (void)
@@ -54,4 +62,13 @@ void read_inputs (void)
         if (inp[i].IS_INVERTED == true) inp[i].STATE = !inp[i].STATE;
         *inp[i].FLAG = inp[i].STATE;
     }
+   //BARO =  bmp.readPressure()/100;
 }
+
+/*void initializeBaro (void)
+{
+    pinMode(A8, OUTPUT);
+    digitalWrite(A8, HIGH);
+    delay(50);
+    bmp.begin();
+}*/

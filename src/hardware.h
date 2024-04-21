@@ -20,4 +20,7 @@ struct Input {
 };
 void initialize_inputs(void);
 void read_inputs(void);
+void set_flags(void);
+void initializeBaro(void);
+void read_baro(void);
 #endif

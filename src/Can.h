@@ -53,5 +53,8 @@ void UpdateText (void);
 void ValueToText (void);
 void NextMsg (void);
 void fuelCalc (void);
+void tripCalculate(void);
+void tripReset (void);
+void resetFlags (void);
 
 #endif
