@@ -11,11 +11,12 @@
 #include "storage.h"
 #include "hardware.h"
 #define LED PC13
-#define TIMEFRAME 50 // should be 200
+#define TIMEFRAME 200
 #define EEPROM_TIME 15000/TIMEFRAME //15s
+#define MSG_TIMEFRAME 500
 
 
-uint32_t ms;
+uint32_t ms, ms_msg, time;
 uint16_t ee_tick;
 
 
@@ -25,33 +26,44 @@ uint16_t ee_tick;
 void setup()
 {
     pinMode(LED, OUTPUT);
-    digitalWrite(LED, HIGH);
-    //SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);   // This one was missing... 
-    //enableBackupDomain();
+    digitalWrite(LED, LOW);
     InitializeCan();
+    digitalWrite(LED, HIGH);
     ClrText();
     initializeStorage();
-    initialize_inputs();
-    /*setBackupRegister(3,0x1488);
-    setBackupRegister(1,0x69);
-    setBackupRegister(2,0x420);*/
-    
-    
-  
+    initialize_inputs();  
   SweepIndicators();
+  ms = millis();
+  ms_msg = ms;
 }
 
 void loop()
-{
-  ms = millis();
-  if (millis() - ms >= TIMEFRAME)
+{ 
+  time = millis() - ms;
+  if (time >= TIMEFRAME)
   {
     ee_tick++;
-    // serialGetData();
+    tripCalculate(time);
+    fuelCalc();
     ClusterFramesSend();
-    UpdateText();
-    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+    //digitalWrite(LED, !digitalRead(LED));
     ms = millis();
+  }
+  if (millis()-ms_msg >= MSG_TIMEFRAME)
+  {
+    if(btn_press)
+    {
+      NextMsg();
+      btn_press--;
+    }
+    else if (btn_longpress)
+    {
+      tripReset();
+      data.currentMsg = msg_tripA;
+      btn_longpress = false;
+    }
+    UpdateText();
+    ms_msg = millis();
   }
   if (ee_tick >= EEPROM_TIME)
   {
@@ -59,5 +71,5 @@ void loop()
     storeData();
   }
   read_inputs();
-  delay(50);
+  delay(20);
 }

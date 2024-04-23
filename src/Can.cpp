@@ -1,7 +1,7 @@
 #include "Can.h"
 #include "fiat_msg.h"
 #include "flags.h"
-
+#include "hardware.h"
 
 /*
 ##############
@@ -31,46 +31,41 @@ int instF, instF_prev;
 float alfa = 0.5;
 float PW;
 int16_t MAP;
-uint16_t rpm = 2500;
-uint16_t speed = 0;
-uint8_t fuel = 50;
-int voltage = 12;
+uint16_t rpm ;
+uint16_t speed;
+uint8_t fuel;
+int voltage;
 int trip_counter;
-int outside_temp = 21;
-uint8_t fuel_ltr;
-uint8_t fuel_capacity;
-uint8_t fuel_low_level;
+int outside_temp;
 char msgBuff[15];
 bool cluster_awake = false;
 bool clr = false;
-uint8_t btn_prev;
-uint8_t prev_msg;
-
+uint8_t frame_time;
 uint32_t  time_prev;
 float trip;
 uint8_t trip_inc, trip_inc_prev;
-float odo_tmp;
+double odo_tmp;
 uint8_t odo_cnt;
 double fuelCC;
 uint16_t fuelConsumedG, fuelConsumedG_prev;
 
-bool halfspeed;
-
-//struct msg message[MsgNum];
 
 uint32_t time() //returns time interval to previous call in MS
 {
-  uint32_t result  = millis() - time_prev;
+  uint32_t result  = getCurrentMillis()- time_prev;
   time_prev = result;
+  
   return result;
 }
 
 void canISR() // get bus msg frame passed by a filter to FIFO0
 {
   can.rxMsgLen = can.receive(can.id, can.fltIdx, can.rxData.bytes); // get CAN msg
+  
   switch (can.id)
   {
   case ID_DIMMER:
+  
     if (can.rxData.bytes[DIMM_SENSOR_BYTE] & DIMM_SENSOR ) {
       F_BCL = true;
     }
@@ -79,20 +74,20 @@ void canISR() // get bus msg frame passed by a filter to FIFO0
     }
     break;
 
-  case ID_STATUS:
+  /*case ID_STATUS:
     if (can.rxData.bytes[STATUS_BYTE] & STATUS_AWAKE) cluster_awake = true;
     else cluster_awake = false;
-    break;
+    break;*/
 
   case ID_ECU_PACKET1:
-      fuelConsumedG = can.rxData.bytes[0]<<8 || can.rxData.bytes[1];
+      fuelConsumedG = (can.rxData.bytes[0]<<8)|(can.rxData.bytes[1]);
       clt = can.rxData.bytes[2] - 40;
       oilt = can.rxData.bytes[3] - 40;
       voltage = can.rxData.bytes[4];
       if(fuelConsumedG_prev<fuelConsumedG)//non-overflow condition
       {
           data.CumulativeFuel+= (fuelConsumedG-fuelConsumedG_prev)/0.76; // convert grams to cc
-          fuelCalc();
+          //fuelCalc();
           
       }
       fuelConsumedG_prev = fuelConsumedG;
@@ -101,19 +96,42 @@ void canISR() // get bus msg frame passed by a filter to FIFO0
       fuel = can.rxData.bytes[7];
   break;
   case ID_ECU_PACKET2:
-      rpm = can.rxData.bytes[0]<<8 || can.rxData.bytes[1];
+      rpm = (can.rxData.bytes[0]<<8)|(can.rxData.bytes[1]);
+      uint8_t WMI = can.rxData.bytes[2];
+      if (WMI>0) 
+      {
+        F_GENERAL_WARNING = true;
+        F_FILTER_ERR = true;
+        if (WMI == 1)
+        data.currentMsg =msg_WMI_LOW;
+        else if (WMI == 2)
+        data.currentMsg =msg_WMI_EMPTY;
+        if (WMI == 3)
+        {
+          data.currentMsg =msg_WMI_FAIL;
+          F_CHECK_ENGINE = true;
+        }
+        
+
+      }
+      else 
+      {
+        F_GENERAL_WARNING = false;
+        F_FILTER_ERR = false;
+        F_CHECK_ENGINE = false;
+      }
+      digitalWrite(PC13, !digitalRead(PC13));
   break;
 
   }
 }
 
 void InitializeCan (){
-    can.begin(EXT_ID_LEN, BR50K, PORTB_8_9_XCVR); // 29b IDs, 50k bit rate, transceiver chip, portB pins 8,9
+    can.begin(EXT_ID_LEN, BR50K, PORTA_11_12_XCVR); // 29b IDs, 50k bit rate, transceiver chip, portA pins 11,12
   //can.filterMask16Init(0, 0, 0x7ff, 0, 0);                // filter bank 0, filter 0: don't pass any, flt 1: pass all msgs
     //can.attachInterrupt(canISR); //no interrupt before indicator sweep
 
-   currentMsg = msg_tripA;
-data.currentMsg = msg_tripA;
+   
 }
 
 void fuelCalc (void)
@@ -161,6 +179,8 @@ void ClusterFramesSend (void){
   Data[6] = 0;
   Data[7] = 0;
   can.transmit(DRAFT, Data, 8);*/
+getRAW(Data);
+  CanSend(0x001,Data,8);
 
 
   //0x221400 //headlight and stuff
@@ -184,7 +204,7 @@ void ClusterFramesSend (void){
   Data[5] = 0;
   Data[6] = 0;
   Data[7] = 0;
-  CanSend(0x221400, Data, 8);
+  CanSend(0x02214000, Data, 8);
 
   //0x04214001 //RPM CLT and engine status
   if (rpm>500 && F_OILPRESS)
@@ -192,11 +212,15 @@ void ClusterFramesSend (void){
     F_OILPRESS = false; // override oil pressure indicator to disable annoing cluster error message
     F_OIL_BLINK = true;
   }
+  if (!F_OILPRESS)
+  {
+    F_OIL_BLINK = false;
+  }
   Data[0] = 0;
   Byte = 0;
   //if (F_GLOW)     Byte+=GLOW_IND;
   //if (F_GLOW_ERR)     Byte+=GLOW_CHECK;
-  //if (F_FILTER_ERR)     Byte+=FUEL_FILTER_IND;
+  if (F_FILTER_ERR)     Byte+=FUEL_FILTER_IND;
   if (F_GENERAL_WARNING)     Byte+=WARNING_IND;
   if (F_OILPRESS)     Byte+=OILPRESS_IND;
   Data[1] = Byte;
@@ -219,13 +243,12 @@ void ClusterFramesSend (void){
   else {
     Byte = 0xa0; F_OVERHEAT = true;
   }
-  Byte = 0xa2;
   Data[3] = Byte; //CLT
 
   Data[4] = 0;
   Data[5] = 0;
 
-  if (rpm>8000) rpm = 8000;
+  //if (rpm>8000) rpm = 8000;
   Byte = rpm/32;
   Data[6] = Byte; //RPM
 
@@ -247,7 +270,7 @@ void ClusterFramesSend (void){
 
   Byte = 0;
   if (F_ABS) Byte+=ABS_UNAVAIL;
-  if (F_EBD_ERR) Byte+=EBD_FAIL;
+  //if (F_EBD_ERR) Byte+=EBD_FAIL;
   Data[1] = Byte;
   Data[2] = 0;
   Data[3] = 0;
@@ -258,7 +281,7 @@ void ClusterFramesSend (void){
   CanSend(0x04214006, Data, 8); 
 
   //0x04394000 Speedometer
-  tripCalculate();
+  //tripCalculate();
   uint16_t speed_tmp = speed*14.9;
   Data[0] = hi8(speed_tmp);
   Data[1] = lo8(speed_tmp);
@@ -283,6 +306,7 @@ void ClusterFramesSend (void){
   Data[1] = Byte;
 
   Data[2] = CLUSTER_ENABLE;
+  //Data[2] = 0;
 
   Data[3] = 0;
 
@@ -359,12 +383,15 @@ void ClusterFramesSend (void){
   
 }
 
-void tripCalculate (void)
+void tripCalculate (uint16_t time)
 {
-  float increment = (speed / 3.6)*time();
+  //static uint32_t time = millis()-time;
+  
+  float increment   =   (speed / 3600.0)*(time);
+  //                    =   m/s       * (millisec)
 	odo_tmp += increment;
   data.tripMeter += increment; 
-	odo_cnt = odo_tmp / 10;
+	odo_cnt = odo_tmp/10;
 	if (odo_tmp > 2550)
 		odo_tmp = odo_tmp - 2550;
 }
@@ -375,7 +402,8 @@ void tripReset (void)
 }
 void CanSend(long MsgID, unsigned char *Data, char msgLen) {
   
-  can.transmit(MsgID, Data, msgLen);
+  if(can.transmit(MsgID, Data, msgLen)==false) digitalWrite(PC13, !digitalRead(PC13));
+  
 }
 
 
@@ -424,11 +452,11 @@ void ClrText (void)
 }
 
 void UpdateText (void){
-    prev_msg = data.currentMsg;/*
+    /*prev_msg = data.currentMsg;/*
     if (no_resp) data.currentMsg = msg_Timeout;
     else if (!data_valid) data.currentMsg = msg_Corrupt;
     else if (eeprom_corrupt) data.currentMsg = msg_EECorrupt;
-    else */data.currentMsg = prev_msg;
+    else data.currentMsg = prev_msg;*/
     if (data.currentMsg == Def)
     {
       if (!clr)
@@ -455,7 +483,7 @@ void ValueToText (void){
       break;
     case msg_tripAVG:
     //AVG##15.5L/100
-      sprintf(msgBuff,"AVG%4d.%dL", avgF/10, avgF%10); //sprinf with floats uses shit ton of resources
+      sprintf(msgBuff,"AVG%4d.%dL/100", avgF/10, avgF%10); //sprinf with floats uses shit ton of resources
       break;
     case msg_BattV:
       sprintf(msgBuff,"BATT%7d.%dV", voltage/10, voltage%10);
@@ -491,7 +519,7 @@ void NextMsg (void){
   data.currentMsg ++;
   if (data.currentMsg>LAST_MSG) 
   {
-    data.currentMsg = 0;
+    data.currentMsg = Def;
     clr = false;
   }
 }
@@ -503,61 +531,13 @@ void SweepIndicators (void)
   ClusterFramesSend();
   delay(50);
   speed = 230;
-  rpm = 8000;
+  rpm = 7500;
   ClusterFramesSend();
-  delay(500);
+  delay(sweep_time);
   speed = 0;
-  rpm = 0;
+    rpm = 0;
   ClusterFramesSend();
   delay(50);
   can.attachInterrupt(canISR);
-  resetFlags();
 }
 
-void resetFlags (void)
-{
-  F_BRAKE_FLUID =  false;
-  //F_BRAKE_PADS =  false;
-  F_BRAKE_PARK =  false;
-  F_DOOR =  false;
-  //F_DOOR_RF = false;
-  //F_DOOR_LF = false;
-  //F_DOOR_BOOT =  false;
-  F_FUEL_LOW =  false;
-  F_FUEL_VERYLOW = false;
-  //F_LOCK =  false;
-  //F_LOCK_BLINK = false;
-  //F_GLOW= false;
-  //F_GLOW_ERR = false;
-  //F_FILTER_ERR = false;
-  F_GENERAL_WARNING =  false;
-  F_OILPRESS =  false;
-  F_OVERHEAT = false;
-  //F_FUEL_CUTOFF= false;
-  F_CHECK_ENGINE =  false;
-  F_CHECK_ENGINE_BLINK= false;
-  F_OIL_BLINK = false;
-  //F_OIL_CHANGE = false;
-  //F_OIL_LEVEL = false;
-  F_EBD_ERR =  false;
-  F_ABS =  false;
-  //F_FOG_REAR =  false;
-  //F_FOG_FRONT =  false;
-  F_HEADLIGHT_CORRECTOR = false;
-  F_HIBEAM =  false;
-  F_SIDELAMP =  false;
-  F_LTURN =  false;
-  F_RTURN =  false;
-  F_BCL = false; //Turn backlight on or off
-  F_CHARGE =  false;
-  F_LOWBATT = false;
- // F_AIRBAG_BLINK = false;
-  //F_AIRBAG =  false;
-  //F_PASS_AIRBAG_BLINK = false;
-  //F_PASS_AIRBAG =  false;
-  //F_BELT =  false;
-  F_EPAS_ERR =  false;
-  F_CITY = false;
-  F_SPORT = false;
-
-}

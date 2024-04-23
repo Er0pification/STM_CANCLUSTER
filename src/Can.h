@@ -15,9 +15,8 @@ BOOST####68KPA
 #include <eXoCAN.h>
 #include "base64.h"
 #include "storage.h"
-#include "hardware.h"
 
-#define sweep_time 1000
+#define sweep_time 2000
 #define lo8(x) ((int)(x)&0xff)
 #define hi8(x) ((int)(x)>>8)
 
@@ -30,9 +29,6 @@ extern int voltage;
 extern uint16_t rpm;
 extern uint16_t speed;
 extern uint8_t fuel;
-extern uint8_t fuel_ltr;
-extern uint8_t fuel_capacity;
-extern uint8_t fuel_low_level;
 extern int trip_counter;
  extern int outside_temp;
 enum msgtype {Def, msg_tripA, msg_tripAVG,  msg_BattV, msg_CltT, msg_OilT, msg_WMI_LOW, msg_WMI_EMPTY, msg_WMI_FAIL, MsgNum};
@@ -53,7 +49,7 @@ void UpdateText (void);
 void ValueToText (void);
 void NextMsg (void);
 void fuelCalc (void);
-void tripCalculate(void);
+void tripCalculate(uint16_t);
 void tripReset (void);
 void resetFlags (void);
 

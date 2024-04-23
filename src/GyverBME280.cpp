@@ -100,35 +100,9 @@ float GyverBME280::readPressure(void) {
     return (float)p / 256;  // Return pressure in float
 }
 
-float GyverBME280::readHumidity(void) {
-    Wire.beginTransmission(_i2c_address);  // Start I2C transmission
-    Wire.write(0xFD);                      // Request humidity data register
-    if (Wire.endTransmission() != 0) return 0;
-    Wire.requestFrom(_i2c_address, 2);                                       // Request humidity data
-    int32_t hum_raw = ((uint16_t)Wire.read() << 8) | (uint16_t)Wire.read();  // Read humidity data
-    if (hum_raw == 0x8000) return 0;                                         // If the humidity module has been disabled return '0'
 
-    int32_t value = (readTempInt() - ((int32_t)76800));  // Start humidity converting
-    value = (((((hum_raw << 14) - (((int32_t)CalibrationData._H4) << 20) - (((int32_t)CalibrationData._H5) * value)) + ((int32_t)16384)) >> 15) * (((((((value * ((int32_t)CalibrationData._H6)) >> 10) * (((value * ((int32_t)CalibrationData._H3)) >> 11) + ((int32_t)32768))) >> 10) + ((int32_t)2097152)) * ((int32_t)CalibrationData._H2) + 8192) >> 14));
-    value = (value - (((((value >> 15) * (value >> 15)) >> 7) * ((int32_t)CalibrationData._H1)) >> 4));
-    value = (value < 0) ? 0 : value;
-    value = (value > 419430400) ? 419430400 : value;
-    float h = (value >> 12);
 
-    return h / 1024.0;  // Return humidity in float
-}
 
-/* ============ Misc ============ */
-
-bool GyverBME280::isMeasuring(void) {
-    return (bool)((readRegister(0xF3) & 0x08) >> 3);  // Read status register & mask bit "measuring"
-}
-
-void GyverBME280::oneMeasurement(void) {
-    writeRegister(0xF4, ((readRegister(0xF4) & 0xFC) | 0x02));  // Set the operating mode to FORCED_MODE
-}
-
-GyverBME280::GyverBME280() {}
 
 /* ============ Private ============ */
 

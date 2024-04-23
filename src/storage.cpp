@@ -11,10 +11,10 @@ dataUnion_t data;
 
 void initializeStorage (void)
 {
-    Wire.setSDA(PB11);
-    Wire.setSCL(PB10);
+    Wire.setSDA(PB9);
+    Wire.setSCL(PB8);
     Wire.begin();
-    //DbgSerial.println("Initializing EEPROM");
+    
     if (getAddr()) 
     {
         //DbgSerial.print("Device EEPROM at ");
