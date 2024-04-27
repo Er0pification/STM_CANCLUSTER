@@ -42,6 +42,8 @@ void CanISR(void);
 void InitializeCan(void);
 void SweepIndicators (void);
 void ClusterFramesSend (void);
+void ClusterSlowFramesSend (void);
+void ClusterFastFramesSend (void);
 void CanSend(long, unsigned char *, char );
 void CanText (char *);
 void ClrText (void);
