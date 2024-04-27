@@ -27,10 +27,11 @@ uint8_t currentMsg, prevMsg;
 int clt ;
 int oilt;
 int avgF;
-int instF, instF_prev;
+//int instF, instF_prev;
 float alfa = 0.5;
-float PW;
-int16_t MAP;
+float filtered_fuel_level = 0;
+//float PW;
+//int16_t MAP;
 uint16_t rpm ;
 uint16_t speed;
 uint8_t fuel;
@@ -40,13 +41,14 @@ int outside_temp;
 char msgBuff[15];
 bool cluster_awake = false;
 bool clr = false;
+bool first_run = true;
 uint8_t frame_time;
 uint32_t  time_prev;
 float trip;
-uint8_t trip_inc, trip_inc_prev;
+//uint8_t trip_inc, trip_inc_prev;
 double odo_tmp;
 uint8_t odo_cnt;
-double fuelCC;
+//double fuelCC;
 uint16_t fuelConsumedG, fuelConsumedG_prev;
 
 
@@ -130,7 +132,8 @@ void InitializeCan (){
     can.begin(EXT_ID_LEN, BR50K, PORTA_11_12_XCVR); // 29b IDs, 50k bit rate, transceiver chip, portA pins 11,12
   //can.filterMask16Init(0, 0, 0x7ff, 0, 0);                // filter bank 0, filter 0: don't pass any, flt 1: pass all msgs
     //can.attachInterrupt(canISR); //no interrupt before indicator sweep
-
+    can.filterList32Init(0,ID_DIMMER,ID_ECU_PACKET3);
+  can.filterList32Init(1,ID_ECU_PACKET1,ID_ECU_PACKET2);
    
 }
 
@@ -179,8 +182,8 @@ void ClusterFramesSend (void){
   Data[6] = 0;
   Data[7] = 0;
   can.transmit(DRAFT, Data, 8);*/
-getRAW(Data);
-  CanSend(0x001,Data,8);
+//getRAW(Data);
+  //CanSend(0x001,Data,8);
 
 
   //0x221400 //headlight and stuff
@@ -189,9 +192,9 @@ getRAW(Data);
   Byte = 0;
   //if (F_FOG_REAR)     Byte+=FOG_REAR;
   //if (F_FOG_FRONT)    Byte+=FOG_FRONT;
-  if (F_HEADLIGHT_CORRECTOR)      Byte+=LAMP_CORR;
+    
   if (F_HIBEAM)     Byte+=HIBEAM;
-  if (F_SIDELAMP)     Byte+=SIDELAMP;
+  if (F_SIDELAMP)     { Byte+=SIDELAMP; Byte+=LAMP_CORR;}
   Data[1] = Byte;
 
   Byte = 0;
@@ -212,7 +215,7 @@ getRAW(Data);
     F_OILPRESS = false; // override oil pressure indicator to disable annoing cluster error message
     F_OIL_BLINK = true;
   }
-  if (!F_OILPRESS)
+  if (F_OILPRESS == false)
   {
     F_OIL_BLINK = false;
   }
@@ -310,13 +313,15 @@ getRAW(Data);
 
   Data[3] = 0;
 
+  if (first_run) filtered_fuel_level = fuel; // diasble Exponential moving average for firs reading
+  else filtered_fuel_level = alfa*fuel + (1-alfa)*filtered_fuel_level;
   Byte = 0;
-  if (fuel <= 8) Byte+=LOW_FUEL_BLINK; // less than 5 liters or 8%
-  else if (fuel <= 16) Byte+=LOW_FUEL_IND; // less than 10 liters or 16%
+  if (filtered_fuel_level <= 8) Byte+=LOW_FUEL_BLINK; // less than 5 liters or 8%
+  else if (filtered_fuel_level <= 16) Byte+=LOW_FUEL_IND; // less than 10 liters or 16%
   
   Data[4] = Byte;
-
-  Data[5] = fuel;
+  
+  Data[5] = (int)filtered_fuel_level;
 
   //Byte = 0;
   //if (F_LOCK) Byte+=LOCK_IND;
@@ -484,6 +489,10 @@ void ValueToText (void){
     case msg_tripAVG:
     //AVG##15.5L/100
       sprintf(msgBuff,"AVG%4d.%dL/100", avgF/10, avgF%10); //sprinf with floats uses shit ton of resources
+      break;
+      case msg_Range:
+    //RANGE####100KM
+      sprintf(msgBuff,"RANGE%7dKM", 0.6*filtered_fuel_level/avgF*10); // convert fuel in % to litters  / divide by avg consumtion per 100 * multiplied by 100
       break;
     case msg_BattV:
       sprintf(msgBuff,"BATT%7d.%dV", voltage/10, voltage%10);

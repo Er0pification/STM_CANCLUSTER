@@ -11,7 +11,7 @@
 #include "storage.h"
 #include "hardware.h"
 #define LED PC13
-#define TIMEFRAME 200
+#define TIMEFRAME 100
 #define EEPROM_TIME 15000/TIMEFRAME //15s
 #define MSG_TIMEFRAME 500
 
@@ -43,6 +43,7 @@ void loop()
   if (time >= TIMEFRAME)
   {
     ee_tick++;
+    read_inputs();
     tripCalculate(time);
     fuelCalc();
     ClusterFramesSend();
@@ -70,6 +71,6 @@ void loop()
     ee_tick = 0;
     storeData();
   }
-  read_inputs();
-  delay(20);
+  
+  delay(5);
 }
