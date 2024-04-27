@@ -28,7 +28,7 @@ int clt ;
 int oilt;
 int avgF;
 //int instF, instF_prev;
-float alfa = 0.5;
+float alfa = 0.1;
 float filtered_fuel_level = 0;
 //float PW;
 //int16_t MAP;
@@ -186,29 +186,7 @@ void ClusterFramesSend (void){
   //CanSend(0x001,Data,8);
 
 
-  //0x221400 //headlight and stuff
-  Data[0] = 0;
-
-  Byte = 0;
-  //if (F_FOG_REAR)     Byte+=FOG_REAR;
-  //if (F_FOG_FRONT)    Byte+=FOG_FRONT;
-    
-  if (F_HIBEAM)     Byte+=HIBEAM;
-  if (F_SIDELAMP)     { Byte+=SIDELAMP; Byte+=LAMP_CORR;}
-  Data[1] = Byte;
-
-  Byte = 0;
-  if (F_LTURN)     Byte+=LTURN;
-  if (F_RTURN)     Byte+=RTURN;
-  Data[2] = Byte;
-
-  Data[3] = 0;
-  Data[4] = 0;
-  Data[5] = 0;
-  Data[6] = 0;
-  Data[7] = 0;
-  CanSend(0x02214000, Data, 8);
-
+  
   //0x04214001 //RPM CLT and engine status
   if (rpm>500 && F_OILPRESS)
   {
@@ -262,27 +240,6 @@ void ClusterFramesSend (void){
   Data[7] = Byte;
   CanSend(0x04214001, Data, 8); 
 
-  //0x04214002 EPAS
-  Data[0] = 0;
-  if (F_EPAS_ERR) Byte+=EPAS_FAIL;
-  Data[1] = Byte;
-  CanSend(0x04214002, Data, 2);
-
-  //0x04214006 ABS indicator
-  Data[0] = 0;
-
-  Byte = 0;
-  if (F_ABS) Byte+=ABS_UNAVAIL;
-  //if (F_EBD_ERR) Byte+=EBD_FAIL;
-  Data[1] = Byte;
-  Data[2] = 0;
-  Data[3] = 0;
-  Data[4] = 0;
-  Data[5] = 0;
-  Data[6] = 0;
-  Data[7] = 0;
-  CanSend(0x04214006, Data, 8); 
-
   //0x04394000 Speedometer
   //tripCalculate();
   uint16_t speed_tmp = speed*14.9;
@@ -313,11 +270,11 @@ void ClusterFramesSend (void){
 
   Data[3] = 0;
 
-  if (first_run) filtered_fuel_level = fuel; // diasble Exponential moving average for firs reading
+  if (first_run) filtered_fuel_level = fuel; // diasble Exponential moving average for first reading
   else filtered_fuel_level = alfa*fuel + (1-alfa)*filtered_fuel_level;
   Byte = 0;
-  if (filtered_fuel_level <= 8) Byte+=LOW_FUEL_BLINK; // less than 5 liters or 8%
-  else if (filtered_fuel_level <= 16) Byte+=LOW_FUEL_IND; // less than 10 liters or 16%
+  if (filtered_fuel_level <= 15) Byte+=LOW_FUEL_BLINK; // less than 9 liters or 15% - float stops floating at this point
+  else if (filtered_fuel_level <= 20) Byte+=LOW_FUEL_IND; // less than 12 liters or 20%
   
   Data[4] = Byte;
   
@@ -330,27 +287,7 @@ void ClusterFramesSend (void){
   Data[7] = 0;
   CanSend(0x06214000, Data, 8);
 
-    //0x0621401A Belt stuff. Die like a real man
-      //Byte = 0;
-      //if (F_AIRBAG_BLINK) Byte+=AIRBAG_BLINK;
-      //if (F_AIRBAG) Byte+=AIRBAG_FAIL;
-      //if (F_PASS_AIRBAG_BLINK) Byte+=PASS_AIRBAG_BLINK;
-      //if (F_PASS_AIRBAG) Byte+=PASS_AIRBAG;
-      Data[0] = 0;
-
-      //Byte = 0;
-      //if (F_BELT) Byte+= BELT;
-      Data[1] = 0;
-      //Byte = 0;
-      //if (F_BELT) Byte+= BELT;
-      Data[2] = 0;
-      Data[3] = 0;
-      Data[4] = 0;
-      Data[5] = 0;
-      Data[6] = 0;
-      Data[7] = 0;
-      CanSend(0x0621401A, Data, 8);
-      
+    
       //0x06314000 Charge
       Byte = 0;
       if (rpm<500) 
@@ -374,8 +311,82 @@ void ClusterFramesSend (void){
       Data[5] = Byte;
       Data[6] = 0;
       Data[7] = 0;
-      CanSend(0x06314000, Data, 8);  
+      CanSend(0x06314000, Data, 8); 
+  
+}
+void ClusterFastFramesSend (void){
+  unsigned char Data[8];
+  unsigned char Byte;
 
+  //0x221400 //headlight and stuff
+  Data[0] = 0;
+
+  Byte = 0;
+  //if (F_FOG_REAR)     Byte+=FOG_REAR;
+  //if (F_FOG_FRONT)    Byte+=FOG_FRONT;
+    
+  if (F_HIBEAM)     Byte+=HIBEAM;
+  if (F_SIDELAMP)     { Byte+=SIDELAMP; Byte+=LAMP_CORR;}
+  Data[1] = Byte;
+
+  Byte = 0;
+  if (F_LTURN)     Byte+=LTURN;
+  if (F_RTURN)     Byte+=RTURN;
+  Data[2] = Byte;
+
+  Data[3] = 0;
+  Data[4] = 0;
+  Data[5] = 0;
+  Data[6] = 0;
+  Data[7] = 0;
+  CanSend(0x02214000, Data, 8);
+
+}
+void ClusterSlowFramesSend (void){
+  unsigned char Data[8];
+  unsigned char Byte;
+  
+  //0x04214002 EPAS
+  Data[0] = 0;
+  if (F_EPAS_ERR) Byte+=EPAS_FAIL;
+  Data[1] = Byte;
+  CanSend(0x04214002, Data, 2);
+
+  //0x04214006 ABS indicator
+  Data[0] = 0;
+
+  Byte = 0;
+  if (F_ABS) Byte+=ABS_UNAVAIL;
+  //if (F_EBD_ERR) Byte+=EBD_FAIL;
+  Data[1] = Byte;
+  Data[2] = 0;
+  Data[3] = 0;
+  Data[4] = 0;
+  Data[5] = 0;
+  Data[6] = 0;
+  Data[7] = 0;
+  CanSend(0x04214006, Data, 8);   
+
+    //0x0621401A Belt stuff. Die like a real man
+      //Byte = 0;
+      //if (F_AIRBAG_BLINK) Byte+=AIRBAG_BLINK;
+      //if (F_AIRBAG) Byte+=AIRBAG_FAIL;
+      //if (F_PASS_AIRBAG_BLINK) Byte+=PASS_AIRBAG_BLINK;
+      //if (F_PASS_AIRBAG) Byte+=PASS_AIRBAG;
+      Data[0] = 0;
+
+      //Byte = 0;
+      //if (F_BELT) Byte+= BELT;
+      Data[1] = 0;
+      //Byte = 0;
+      //if (F_BELT) Byte+= BELT;
+      Data[2] = 0;
+      Data[3] = 0;
+      Data[4] = 0;
+      Data[5] = 0;
+      Data[6] = 0;
+      Data[7] = 0;
+      CanSend(0x0621401A, Data, 8);
 
       //0x063D4000 outside temp (T+40)*2 FROM -39 to 88 
       if (outside_temp>88) outside_temp = 88;
@@ -385,7 +396,9 @@ void ClusterFramesSend (void){
       Data[2] = 0;
       Data[3] = 0;
       CanSend(0x063D4000, Data, 4);
-  
+      uint8_t data[8] = {00,0x1E,00,00,00,00,00,01};
+      CanSend(0x0E094000, data,8);
+    first_run = false;
 }
 
 void tripCalculate (uint16_t time)
@@ -535,6 +548,8 @@ void NextMsg (void){
 
 void SweepIndicators (void)
 {
+  uint8_t data[8] = {00,0x1c,00,00,00,00,00,01};
+  CanSend(0x0E094000, data,8);
   speed = 0;
   rpm = 0;
   ClusterFramesSend();
