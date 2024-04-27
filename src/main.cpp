@@ -43,7 +43,6 @@ void loop()
   if (time >= TIMEFRAME)
   {
     ee_tick++;
-    read_inputs();
     tripCalculate(time);
     fuelCalc();
     ClusterFramesSend();
@@ -71,6 +70,6 @@ void loop()
     ee_tick = 0;
     storeData();
   }
-  
-  delay(5);
+  read_inputs();
+  delay(50);
 }
