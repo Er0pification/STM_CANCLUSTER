@@ -11,12 +11,12 @@
 #include "storage.h"
 #include "hardware.h"
 #define LED PC13
-#define TIMEFRAME 50
+#define TIMEFRAME 200
 #define EEPROM_TIME 15000/TIMEFRAME //15s
 #define MSG_TIMEFRAME 500
 #define INP_TIMEFRAME 20
 
-uint32_t ms, ms_msg, time;
+uint32_t ms, ms_msg, loop_time;
 uint16_t ee_tick;
 uint8_t frametick;
 
@@ -40,24 +40,21 @@ void setup()
 
 void loop()
 { 
-  time = millis() - ms;
-  if (time >= TIMEFRAME)
+  ClusterFastFramesSend();
+  loop_time = millis() - ms;
+  if (loop_time >= TIMEFRAME)
   {
     ee_tick++;
-    frametick++;
-    read_inputs();
-    ClusterFastFramesSend();
-    if (frametick == 4 || frametick == 8)
-    {
-      tripCalculate(time);
+    frametick++;    
+    tripCalculate(loop_time);
       fuelCalc();
       ClusterFramesSend();
-        if (frametick == 8)
-      {
+    if (frametick == 2)
+    {
         ClusterSlowFramesSend();
         frametick = 0;
       }
-    } 
+    
     //digitalWrite(LED, !digitalRead(LED));
     ms = millis();
     
@@ -83,6 +80,6 @@ void loop()
     ee_tick = 0;
     storeData();
   }
-  
-  delay(5);
+  read_inputs();
+  delay(50);
 }

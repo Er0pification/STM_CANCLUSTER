@@ -132,7 +132,7 @@ void InitializeCan (){
     can.begin(EXT_ID_LEN, BR50K, PORTA_11_12_XCVR); // 29b IDs, 50k bit rate, transceiver chip, portA pins 11,12
   //can.filterMask16Init(0, 0, 0x7ff, 0, 0);                // filter bank 0, filter 0: don't pass any, flt 1: pass all msgs
     //can.attachInterrupt(canISR); //no interrupt before indicator sweep
-    can.filterList32Init(0,ID_DIMMER,ID_ECU_PACKET3);
+    //can.filterList32Init(0,ID_DIMMER,ID_ECU_PACKET3);
   can.filterList32Init(1,ID_ECU_PACKET1,ID_ECU_PACKET2);
    
 }
@@ -252,7 +252,7 @@ void ClusterFramesSend (void){
 
   //0x06214000 FUEL
   Byte = 0;
-  if (F_BCL) Byte+=BCL_EN;
+  if (F_SIDELAMP) Byte+=BCL_EN;
   if (F_BRAKE_FLUID) Byte+=LOW_BRAKE_FLUID;
   if (F_BRAKE_PARK) Byte+=PARK_BRAKE;
   //if (F_BRAKE_PADS) Byte+=CHECK_PADS;
@@ -396,8 +396,6 @@ void ClusterSlowFramesSend (void){
       Data[2] = 0;
       Data[3] = 0;
       CanSend(0x063D4000, Data, 4);
-      uint8_t data[8] = {00,0x1E,00,00,00,00,00,01};
-      CanSend(0x0E094000, data,8);
     first_run = false;
 }
 
@@ -548,8 +546,7 @@ void NextMsg (void){
 
 void SweepIndicators (void)
 {
-  uint8_t data[8] = {00,0x1c,00,00,00,00,00,01};
-  CanSend(0x0E094000, data,8);
+  
   speed = 0;
   rpm = 0;
   ClusterFramesSend();
