@@ -45,7 +45,7 @@ void loop()
   if (loop_time >= TIMEFRAME)
   {
     ee_tick++;
-    frametick++;    
+    /*frametick++;    
     tripCalculate(loop_time);
       fuelCalc();
       ClusterFramesSend();
@@ -55,7 +55,8 @@ void loop()
         frametick = 0;
       }
     
-    //digitalWrite(LED, !digitalRead(LED));
+    //digitalWrite(LED, !digitalRead(LED));*/
+    NoValidData();
     ms = millis();
     
   }

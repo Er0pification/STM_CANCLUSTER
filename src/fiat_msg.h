@@ -240,7 +240,7 @@
 #define MAX_RPM 8000
 
 
-#define ID_ECU_PACKET1 0x00AA0001
+#define ID_ECU_PACKET1 0x000000A1
     //f_cons = getOutput("totalFuelConsumption") -- in grams
 	//Data[0] = f_cons>>8
 	//Data[1] = f_cons&0xff 
@@ -253,7 +253,7 @@
     //7 fuel level
 
 
-    #define ID_ECU_PACKET2 0x00AA0002
+    #define ID_ECU_PACKET2 0x000000A2
 	//Data[0] = rpm>>8
 	//Data[1] = rpm&0xff
     //2 
@@ -262,7 +262,7 @@
     //5 
     //6 
     //7 
-     #define ID_ECU_PACKET3 0x00AA0003
+     #define ID_ECU_PACKET3 0x000000A3
 	//0
 	//1
     //2 
