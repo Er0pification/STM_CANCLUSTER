@@ -20,7 +20,7 @@ typedef union{
         uint8_t odo_cnt; //4
         float tripMeter; //8
         double CumulativeFuel; //16,  in cc
-        uint8_t unused1; //17
+        uint8_t pendingMSG; //17
         uint8_t unused2; //18
         uint8_t unused3; //19
         uint8_t unused4; //20

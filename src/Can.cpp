@@ -27,14 +27,18 @@ uint8_t currentMsg, prevMsg;
 int clt ;
 int oilt;
 int avgF;
-//int instF, instF_prev;
-//float alfa = 0.1;
-//float filtered_fuel_level = 0;
+float instF, instF_prev;
+float deltaFuel = 0;
+float deltaTrip = 0;
+float instAlfa = 0.3;
+float alfa = 0.5;
+float filtered_fuel_level = 0;
 //float PW;
 //int16_t MAP;
 uint16_t rpm ;
 uint16_t speed;
-uint8_t fuel = 25;
+uint8_t fuel = 50;
+uint8_t fuel_cnt = 0;
 int voltage;
 int trip_counter;
 int outside_temp;
@@ -52,8 +56,12 @@ bool newdata;
 //uint8_t trip_inc, trip_inc_prev;
 double odo_tmp;
 uint8_t odo_cnt;
+uint8_t pendingMsg, msgTick;
+bool showErr; 
+#define ERROR_TICKS  10
 //double fuelCC;
-uint16_t fuelConsumedG, fuelConsumedG_prev;
+uint16_t fuelConsumedG;
+uint16_t fuelConsumedG_prev = 0;
 
 uint8_t wakeup[6] = {0x00, 0x1C, 0x00, 0x00, 0x00, 0x01};
 uint8_t status1[6] = {0x00, 0x1E, 0x00, 0x00, 0x00, 0x01};
@@ -99,9 +107,11 @@ void canISR() // get bus msg frame passed by a filter to FIFO0
       clt = can.rxData.bytes[2] - 40;
       oilt = can.rxData.bytes[3] - 40;
       voltage = can.rxData.bytes[4];
+      if (first_run) fuelConsumedG_prev = fuelConsumedG;
       if(fuelConsumedG_prev<fuelConsumedG)//non-overflow condition
       {
-          data.CumulativeFuel+= (fuelConsumedG-fuelConsumedG_prev); // do not convert grams to cc
+          deltaFuel = fuelConsumedG-fuelConsumedG_prev;
+          data.CumulativeFuel+= deltaFuel; // do not convert grams to cc
           //fuelCalc();
           
       }
@@ -115,15 +125,16 @@ void canISR() // get bus msg frame passed by a filter to FIFO0
       uint8_t WMI = can.rxData.bytes[2];
       if (WMI>0) 
       {
-        F_GENERAL_WARNING = true;
+        
         F_FILTER_ERR = true;
         if (WMI == 1)
-        data.currentMsg =msg_WMI_LOW;
+        pendingMsg =msg_WMI_LOW;
         else if (WMI == 2)
-        data.currentMsg =msg_WMI_EMPTY;
+        pendingMsg =msg_WMI_EMPTY;
+        F_GENERAL_WARNING = true;        
         if (WMI == 3)
         {
-          data.currentMsg =msg_WMI_FAIL;
+          pendingMsg =msg_WMI_FAIL;
           F_CHECK_ENGINE = true;
         }
         
@@ -131,12 +142,20 @@ void canISR() // get bus msg frame passed by a filter to FIFO0
       }
       else 
       {
+        pendingMsg = 0;
         F_GENERAL_WARNING = false;
         F_FILTER_ERR = false;
         F_CHECK_ENGINE = false;
       }
       fuel = can.rxData.bytes[4];
-      if (first_run) fuel = 25; 
+      instF = ((can.rxData.bytes[5]<<8) | (can.rxData.bytes[6]))/1000.0;
+      if (first_run) 
+      {
+        fuel = 50; 
+        instF_prev = instF;
+      }
+      if (can.rxData.bytes[3]>0) F_SPORT = true;
+      else F_SPORT = false;
       newdata = true;
       deltaT = time();
       dbgVal = deltaT;
@@ -160,6 +179,7 @@ bool NoValidData ()
     {
       rpm = 0;
       speed = 0;
+      fuel = 50;
       ClusterFramesSend();
       ClusterSlowFramesSend();
       return true;
@@ -180,35 +200,22 @@ void InitializeCan (){
 
 void fuelCalc (void)
 {
-    
-    /*uint8_t injN=6;
-    uint8_t nSquirts = 1;
-    uint8_t div = 2;
-    uint16_t baseFlow = 296;
-    uint16_t basePressure = 270;
-
-    float deadtime = 1;
-
-    float fuelPres = basePressure + (MAP-100);//kpa
-    float flowCor = baseFlow * sqrt(fuelPres/basePressure); //cc/min 
-    double squirtsPerEvent = (rpm*time()/60000) * (injN * nSquirts / div);
-    //                        RPS       Ms to S             3 injections
-    //                      {Revolutions per event}           per revolution
-    uint32_t squirtsPerHr =    rpm * 60 * injN * nSquirts / div;
-    //                          RPH
-    
-    double fuelPerSquirt = ((PW-deadtime)/60000) * flowCor;
-    //                      (ms         to min) * cc/min = cc
-    data.CumulativeFuel += squirtsPerEvent * fuelPerSquirt;
-    double lhrCons = (squirtsPerHr * fuelPerSquirt) / 100000.0; //TODO  - find out where excessive 00 came from - MUST BE 1000!
-    instF = (int)(lhrCons*10);
-    instF = alfa*instF + (1-alfa)* instF_prev;
-    instF_prev = instF;*/
     double avgTemp = ((data.CumulativeFuel/0.71)/1000) / (data.tripMeter/100000);
     //                (        cc    to Liters) / (     meters to 100km ) = ltr/100km
-    if (data.tripMeter <500) avgF = 0;
-    else if (avgTemp>255) avgF=255;
+    if (data.tripMeter <100) avgF = 0;
+    else if (avgTemp>500) avgF=500;
      else   avgF = int(avgTemp*10);
+    
+    float InstTemp = ((instF/0.71)/1000); //convert g/s to l/s
+    InstTemp  *= 3600; // convert l/s to l/hr
+    if (speed>0) {
+      InstTemp *= (100.0/float (speed));
+    }
+    
+    instF = instAlfa * InstTemp + (1-instAlfa) * instF_prev;
+    instF_prev = instF;
+    
+
     //DbgSerial.printf("/nFuel total - %d, avg - %d, sqirts - %d", (int)data.CumulativeFuel, avgF, (int)squirtsPerEvent);
 }
 
@@ -271,12 +278,12 @@ void ClusterFramesSend (void){
     Byte = 0xa0; F_OVERHEAT = true;
   }
   else if (clt>100) Byte = 0xa2;
-  else if (clt>95) Byte = 0x9f;
+  else if (clt>=95) Byte = 0x9f;
   else if (clt>90) Byte = 0x9d;
-  else if (clt>80) Byte = 0x70;
-  else if (clt>70) Byte = 0x64;
-  else if (clt>60) Byte = 0x5a;
-  else if (clt>50) Byte = 0x50;
+  else if (clt>85) Byte = 0x70;
+  else if (clt>80) Byte = 0x64;
+  else if (clt>70) Byte = 0x5a;
+  else if (clt>60) Byte = 0x50;
   
   Data[3] = Byte; //CLT
 
@@ -321,16 +328,16 @@ void ClusterFramesSend (void){
 
   Data[3] = 0;
 
-  //if (first_run) 
-  //filtered_fuel_level = fuel; // diasble Exponential moving average for first reading
- // else filtered_fuel_level = alfa*fuel + (1-alfa)*filtered_fuel_level;
+  if (first_run) 
+  filtered_fuel_level = 50; // diasble Exponential moving average for first reading
+  else filtered_fuel_level = alfa*fuel + (1-alfa)*filtered_fuel_level;
   Byte = 0;
-  if (fuel <= 15) Byte+=LOW_FUEL_BLINK; // less than 9 liters or 15% - float stops floating at this point
-  else if (fuel <= 20) Byte+=LOW_FUEL_IND; // less than 12 liters or 20%
+  if (filtered_fuel_level <= 15) Byte+=LOW_FUEL_BLINK;// less than 9 liters or 15% - float stops floating at this point
+  else if (filtered_fuel_level <= 20) Byte+=LOW_FUEL_IND; // less than 12 liters or 20% 
   if (first_run) Byte = 0;
   Data[4] = Byte;
   
-  Data[5] = fuel;
+  Data[5] = filtered_fuel_level;
 
   //Byte = 0;
   //if (F_LOCK) Byte+=LOCK_IND;
@@ -347,6 +354,35 @@ void ClusterFramesSend (void){
   Data[2] = 0;
   Data[3] = odo_cnt;
   CanSend(0x04394000, Data, 4);
+  //0x0621401A Belt stuff. Die like a real man
+  //Used as shift indicator
+      Byte = 0;
+      uint8_t F_shift;
+      if (rpm>5250 && first_run ==0)
+      {
+        Byte+=PASS_AIRBAG_BLINK;
+      }
+      if (rpm>5500 && first_run ==0)
+      {
+        Byte+=AIRBAG_BLINK;
+      }
+      
+      //if (F_AIRBAG_BLINK) Byte+=AIRBAG_BLINK;
+      //if (F_AIRBAG) Byte+=AIRBAG_FAIL;
+      //if (F_PASS_AIRBAG_BLINK) Byte+=PASS_AIRBAG_BLINK;
+      //if (F_PASS_AIRBAG) Byte+=PASS_AIRBAG;
+      Data[0] = Byte;
+      Byte = 0;
+      if (rpm>5750 && first_run ==0) 
+      Byte+= BELT;
+      Data[1] = Byte;
+      Data[2] = Byte;
+      Data[3] = 0;
+      Data[4] = 0;
+      Data[5] = 0;
+      Data[6] = 0;
+      Data[7] = 0;
+      CanSend(0x0621401A, Data, 8);
 
   
   
@@ -395,7 +431,7 @@ void ClusterSlowFramesSend (void){
       else
       {
         if (voltage<110) Byte+=CHARGE_BLINK;
-        else if (voltage<130) Byte+=CHARGE;
+        else if (voltage<125) Byte+=CHARGE;
       }
       Data[0] = Byte;
       Data[1] = 0;
@@ -432,26 +468,7 @@ void ClusterSlowFramesSend (void){
   Data[7] = 0;
   CanSend(0x04214006, Data, 8);   
 
-    //0x0621401A Belt stuff. Die like a real man
-      //Byte = 0;
-      //if (F_AIRBAG_BLINK) Byte+=AIRBAG_BLINK;
-      //if (F_AIRBAG) Byte+=AIRBAG_FAIL;
-      //if (F_PASS_AIRBAG_BLINK) Byte+=PASS_AIRBAG_BLINK;
-      //if (F_PASS_AIRBAG) Byte+=PASS_AIRBAG;
-      Data[0] = 0;
-
-      //Byte = 0;
-      //if (F_BELT) Byte+= BELT;
-      Data[1] = 0;
-      //Byte = 0;
-      //if (F_BELT) Byte+= BELT;
-      Data[2] = 0;
-      Data[3] = 0;
-      Data[4] = 0;
-      Data[5] = 0;
-      Data[6] = 0;
-      Data[7] = 0;
-      CanSend(0x0621401A, Data, 8);
+    
 
       //0x063D4000 outside temp (T+40)*2 FROM -39 to 88 
       if (outside_temp>88) outside_temp = 88;
@@ -471,6 +488,7 @@ void tripCalculate (uint16_t time)
   float increment   =   (speed / 3600.0)*(time);
   //                    =   m/s       * (millisec)
 	odo_tmp += increment;
+  deltaTrip = increment;
   data.tripMeter += increment; 
 	odo_cnt = odo_tmp/10;
 	if (odo_tmp > 2550)
@@ -548,15 +566,30 @@ void UpdateText (void){
       
     } 
     else {
-      ValueToText();
+      ValueToText(uint8_t(showErr));
       CanText(msgBuff);      
     }
+
+    if (msgTick>ERROR_TICKS){
+      if (pendingMsg>0)
+      {
+        showErr = !showErr;
+      }
+      else
+      {
+        showErr = false;
+      }
+      msgTick=0;
+    }
+    msgTick++;
   
 }
 
-void ValueToText (void){
-
-  switch(data.currentMsg){
+void ValueToText (uint8_t show_error){
+ uint8_t msg;
+  if (show_error==0) msg = data.currentMsg;
+  else msg = pendingMsg;
+  switch(msg){
     //info messages
     case msg_tripA:
       trip_counter = (int)(data.tripMeter/100);
@@ -574,6 +607,17 @@ void ValueToText (void){
       sprintf(msgBuff,"RANGE%7dKM", rng); // convert fuel in % to litters  / divide by avg consumtion per 100 * multiplied by 100
       break;
       }
+      case msg_Inst:
+      {
+    //INST#15.5L/100
+    //INST##15.5L/HR
+    uint16_t inst = int(instF*10);
+    if (speed>0)
+      sprintf(msgBuff,"INST%3d.%dL/100", inst/10, inst%10); // convert fuel in % to litters  / divide by avg consumtion per 100 * multiplied by 100
+    else
+      sprintf(msgBuff,"INST%4d.%dL/HR", inst/10, inst%10);
+      break;
+      }
     case msg_BattV:
       sprintf(msgBuff,"BATT%7d.%dV", voltage/10, voltage%10);
       break;
@@ -583,9 +627,6 @@ void ValueToText (void){
       break;
     case msg_OilT:
       sprintf(msgBuff,"OIL T%7doC", oilt);
-      break;
-    case msg_dbg:
-      sprintf(msgBuff,"DBG %9d", dbgVal);
       break;
     //errors msg_Timeout, msg_Corrupt
     case msg_WMI_LOW:
@@ -623,6 +664,7 @@ void SweepIndicators (void)
   CanSend(0x0E094000,status1,6);
   speed = 0;
   rpm = 0;
+  fuel = 50;
   ClusterFramesSend();
   delay(50);
   speed = 230;

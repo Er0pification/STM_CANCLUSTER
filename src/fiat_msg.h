@@ -219,9 +219,8 @@
 #define PASS_AIRBAG 0x20 
 #define AIRBAG_BLINK 0x40
 #define AIRBAG_FAIL 0x80
-//byte 1
+//byte 1 & byte 2
 #define BELT 0x01
-//byte 2
 //byte 3
 //byte 4
 //byte 5
