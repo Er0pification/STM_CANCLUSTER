@@ -21,7 +21,7 @@ typedef union{
         float tripMeter; //8
         double CumulativeFuel; //16,  in cc
         uint8_t pendingMSG; //17
-        uint8_t unused2; //18
+        uint8_t fuel_level; //18
         uint8_t unused3; //19
         uint8_t unused4; //20
         uint8_t unused5; //21

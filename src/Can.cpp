@@ -31,7 +31,7 @@ float instF, instF_prev;
 float deltaFuel = 0;
 float deltaTrip = 0;
 float instAlfa = 0.3;
-float alfa = 0.5;
+float alfa = 0.1;
 float filtered_fuel_level = 0;
 //float PW;
 //int16_t MAP;
@@ -148,12 +148,6 @@ void canISR() // get bus msg frame passed by a filter to FIFO0
         F_CHECK_ENGINE = false;
       }
       fuel = can.rxData.bytes[4];
-      instF = ((can.rxData.bytes[5]<<8) | (can.rxData.bytes[6]))/1000.0;
-      if (first_run) 
-      {
-        fuel = 50; 
-        instF_prev = instF;
-      }
       if (can.rxData.bytes[3]>0) F_SPORT = true;
       else F_SPORT = false;
       newdata = true;
@@ -329,11 +323,15 @@ void ClusterFramesSend (void){
   Data[3] = 0;
 
   if (first_run) 
-  filtered_fuel_level = 50; // diasble Exponential moving average for first reading
-  else filtered_fuel_level = alfa*fuel + (1-alfa)*filtered_fuel_level;
+  filtered_fuel_level = data.fuel_level; // diasble Exponential moving average for first reading
+  else
+  {
+    filtered_fuel_level = alfa*fuel + (1-alfa)*filtered_fuel_level;
+    data.fuel_level = filtered_fuel_level;
+  } 
   Byte = 0;
-  if (filtered_fuel_level <= 15) Byte+=LOW_FUEL_BLINK;// less than 9 liters or 15% - float stops floating at this point
-  else if (filtered_fuel_level <= 20) Byte+=LOW_FUEL_IND; // less than 12 liters or 20% 
+  if (filtered_fuel_level <= 10) Byte+=LOW_FUEL_BLINK;// less than 9 liters or 15% - float stops floating at this point
+  else if (filtered_fuel_level <= 15) Byte+=LOW_FUEL_IND; // less than 12 liters or 20% 
   if (first_run) Byte = 0;
   Data[4] = Byte;
   
@@ -358,11 +356,11 @@ void ClusterFramesSend (void){
   //Used as shift indicator
       Byte = 0;
       uint8_t F_shift;
-      if (rpm>5250 && first_run ==0)
+      if (rpm>5000 && first_run ==0)
       {
         Byte+=PASS_AIRBAG_BLINK;
       }
-      if (rpm>5500 && first_run ==0)
+      if (rpm>5250 && first_run ==0)
       {
         Byte+=AIRBAG_BLINK;
       }
@@ -373,7 +371,7 @@ void ClusterFramesSend (void){
       //if (F_PASS_AIRBAG) Byte+=PASS_AIRBAG;
       Data[0] = Byte;
       Byte = 0;
-      if (rpm>5750 && first_run ==0) 
+      if (rpm>5500 && first_run ==0) 
       Byte+= BELT;
       Data[1] = Byte;
       Data[2] = Byte;
@@ -599,7 +597,7 @@ void ValueToText (uint8_t show_error){
     //AVG##15.5L/100
       sprintf(msgBuff,"AVG%4d.%dL/100", avgF/10, avgF%10); //sprinf with floats uses shit ton of resources
       break;
-      case msg_Range:
+      /*case msg_Range:
       {
     //RANGE####100KM
     uint16_t rng = ((0.6*fuel)/(avgF/10))*100;
@@ -607,7 +605,7 @@ void ValueToText (uint8_t show_error){
       sprintf(msgBuff,"RANGE%7dKM", rng); // convert fuel in % to litters  / divide by avg consumtion per 100 * multiplied by 100
       break;
       }
-      case msg_Inst:
+      /*case msg_Inst:
       {
     //INST#15.5L/100
     //INST##15.5L/HR
@@ -617,16 +615,20 @@ void ValueToText (uint8_t show_error){
     else
       sprintf(msgBuff,"INST%4d.%dL/HR", inst/10, inst%10);
       break;
-      }
+      }*/
     case msg_BattV:
       sprintf(msgBuff,"BATT%7d.%dV", voltage/10, voltage%10);
       break;
-    case msg_CltT:
+    /*case msg_CltT:
       //sprintf(msgBuff,"CLT%9doC", clt);
       sprintf(msgBuff,"COOLANT%5doC", clt);
-      break;
+      break;      
     case msg_OilT:
       sprintf(msgBuff,"OIL T%7doC", oilt);
+      break;*/
+    case msg_TempMsg:
+      //sprintf(msgBuff,"CLT%9doC", clt);
+      sprintf(msgBuff,"O%3doC  C%3doC", clt);
       break;
     //errors msg_Timeout, msg_Corrupt
     case msg_WMI_LOW:
