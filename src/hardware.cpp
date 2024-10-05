@@ -86,7 +86,7 @@ void read_button (void)
     {
         down_cnt++;
         prev_state = true;
-        if (down_cnt>10) //ifbutton is pressed fo longer than a second, must be a long press
+        if (down_cnt>=20) //ifbutton is pressed fo longer than a second, must be a long press
         {
             btn_longpress = true;
             down_cnt--;
@@ -94,7 +94,7 @@ void read_button (void)
     }
     if (digitalRead(BUTTON) && prev_state == true)
     {
-        if(down_cnt<10 && down_cnt>=1) //was pressed for less than 500 ms but more than 100ms
+        if(down_cnt<20 && down_cnt>=1) //was pressed for less than 500 ms but more than 100ms
         {
             btn_press++;
         }
