@@ -666,7 +666,7 @@ void SweepIndicators (void)
   CanSend(0x0E094000,status1,6);
   speed = 0;
   rpm = 0;
-  fuel = 50;
+  fuel = data.fuel_level;
   ClusterFramesSend();
   delay(50);
   speed = 230;
