@@ -2,6 +2,8 @@
 #include <arduino.h>
 #include "Can.h"
 #include "storage.h"
+#include "hardware.h"
+#include "lcd.h"
 #define LED PC13
 #define TIMEFRAME 200
 #define EEPROM_TIME 15000/TIMEFRAME //15s
@@ -20,14 +22,16 @@ void setup()
     digitalWrite(LED, LOW);
     delay(500);
     SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);   // This one was missing... 
-    InitializeCan();
+    //InitializeCan();
     initializeStorage();
+    initialize_inputs();
+    setup_lcd();
 }
 
 
 void loop()
 {   
-    
+    loop_lcd();
     ms = millis();
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
     while (1)
