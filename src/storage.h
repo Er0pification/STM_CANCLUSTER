@@ -2,15 +2,14 @@
 #define STORAGE_H
 
 #include<arduino.h>
-#include "serialcomm.h"
 
-#define MEM_SIZE 32768
+#define MEM_SIZE 16384
 #define PAGE_SIZE 64
 #define BLOCK_SIZE 32 
 #define PAGE_IN_BLOCK 1
 #define BLOCK_NUM 400
-#define NON_WL_START 1 + (BLOCK_SIZE *BLOCK_NUM) //25601
-#define NON_WL_SIZE MEM_SIZE - NON_WL_START //7167
+#define NON_WL_START 1 + (BLOCK_SIZE *BLOCK_NUM) //12801
+#define NON_WL_SIZE MEM_SIZE - NON_WL_START //3584
 
 typedef union{
     uint8_t bytearray[BLOCK_SIZE];
