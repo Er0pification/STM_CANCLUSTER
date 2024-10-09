@@ -32,7 +32,7 @@ float deltaFuel = 0;
 float deltaTrip = 0;
 float instAlfa = 0.3;
 float alfa = 0.1;
-float filtered_fuel_level = 0;
+float filtered_fuel_level;
 //float PW;
 //int16_t MAP;
 uint16_t rpm ;
@@ -327,7 +327,7 @@ void ClusterFramesSend (void){
   else
   {
     filtered_fuel_level = alfa*fuel + (1-alfa)*filtered_fuel_level;
-    data.fuel_level = filtered_fuel_level;
+    data.fuel_level = (uint8_t)filtered_fuel_level;
   } 
   Byte = 0;
   if (filtered_fuel_level <= 10) Byte+=LOW_FUEL_BLINK;// less than 9 liters or 15% - float stops floating at this point
@@ -423,12 +423,12 @@ void ClusterSlowFramesSend (void){
       Byte = 0;
       if (rpm<200) 
       {
-        if (voltage>110) Byte+=CHARGE;
+        if (voltage>115) Byte+=CHARGE;
         else Byte+= CHARGE_BLINK;
       }
       else
       {
-        if (voltage<110) Byte+=CHARGE_BLINK;
+        if (voltage<115) Byte+=CHARGE_BLINK;
         else if (voltage<125) Byte+=CHARGE;
       }
       Data[0] = Byte;
@@ -628,7 +628,7 @@ void ValueToText (uint8_t show_error){
       break;*/
     case msg_TempMsg:
       //sprintf(msgBuff,"CLT%9doC", clt);
-      sprintf(msgBuff,"O%3doC  C%3doC", clt);
+      sprintf(msgBuff,"O%3doC  C%3doC", oilt, clt);
       break;
     //errors msg_Timeout, msg_Corrupt
     case msg_WMI_LOW:
@@ -671,10 +671,12 @@ void SweepIndicators (void)
   delay(50);
   speed = 230;
   rpm = 7500;
+  fuel = data.fuel_level;
   ClusterFramesSend();
   delay(sweep_time);
   speed = 0;
     rpm = 0;
+    fuel = data.fuel_level;
   ClusterFramesSend();
   delay(50);
   can.attachInterrupt(canISR);
