@@ -1,4 +1,4 @@
-/*********************************************************************
+﻿/*********************************************************************
 This is an example for our Monochrome OLEDs based on SH1106 drivers
 
   Pick one up today in the adafruit shop!
@@ -22,17 +22,17 @@ All text above, and the splash screen must be included in any redistribution
 #include <Adafruit_SH1106.h>
 
 // If using software SPI (the default case):
-#define OLED_MOSI   PB5
-#define OLED_CLK   PB3
-#define OLED_DC    PB6
-#define OLED_CS    PB7
-#define OLED_RESET PB4
+#define OLED_MOSI   9
+#define OLED_CLK   10
+#define OLED_DC    11
+#define OLED_CS    12
+#define OLED_RESET 13
 Adafruit_SH1106 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 
-// Uncomment this block to use hardware SPI
-/*#define OLED_DC     PB6
-#define OLED_CS     PB7
-#define OLED_RESET  PB4
+/* Uncomment this block to use hardware SPI
+#define OLED_DC     6
+#define OLED_CS     7
+#define OLED_RESET  8
 Adafruit_SH1106 display(OLED_DC, OLED_RESET, OLED_CS);
 */
 
@@ -252,7 +252,8 @@ void testscrolltext(void) {
 }
 */
 
-void lcd_setup()   {        
+void setup()   {                
+  Serial.begin(9600);
   
   // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
   display.begin(SH1106_SWITCHCAPVCC);
@@ -362,3 +363,6 @@ void lcd_setup()   {
 }
 
 
+void loop() {
+  
+}

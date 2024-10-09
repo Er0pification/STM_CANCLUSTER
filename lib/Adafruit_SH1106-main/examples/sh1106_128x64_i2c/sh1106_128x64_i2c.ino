@@ -1,11 +1,11 @@
-/*********************************************************************
-This is an example for our Monochrome OLEDs based on SH1106 drivers
+﻿/*********************************************************************
+This is an example for our Monochrome OLEDs based on SSD1306 drivers
 
   Pick one up today in the adafruit shop!
   ------> http://www.adafruit.com/category/63_98
 
-This example is for a 128x64 size display using SPI to communicate
-4 or 5 pins are required to interface
+This example is for a 128x64 size display using I2C to communicate
+3 pins are required to interface (2 I2C and one reset)
 
 Adafruit invests time and resources providing this open source code, 
 please support Adafruit and open-source hardware by purchasing 
@@ -16,30 +16,26 @@ BSD license, check license.txt for more information
 All text above, and the splash screen must be included in any redistribution
 *********************************************************************/
 
+/*********************************************************************
+I change the adafruit SSD1306 to SH1106
+
+SH1106 driver don't provide several functions such as scroll commands.
+
+*********************************************************************/
+
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH1106.h>
 
-// If using software SPI (the default case):
-#define OLED_MOSI   PB5
-#define OLED_CLK   PB3
-#define OLED_DC    PB6
-#define OLED_CS    PB7
-#define OLED_RESET PB4
-Adafruit_SH1106 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
-
-// Uncomment this block to use hardware SPI
-/*#define OLED_DC     PB6
-#define OLED_CS     PB7
-#define OLED_RESET  PB4
-Adafruit_SH1106 display(OLED_DC, OLED_RESET, OLED_CS);
-*/
+#define OLED_RESET 4
+Adafruit_SH1106 display(OLED_RESET);
 
 #define NUMFLAKES 10
 #define XPOS 0
 #define YPOS 1
 #define DELTAY 2
+
 
 #define LOGO16_GLCD_HEIGHT 16 
 #define LOGO16_GLCD_WIDTH  16 
@@ -64,6 +60,7 @@ static const unsigned char PROGMEM logo16_glcd_bmp[] =
 #if (SH1106_LCDHEIGHT != 64)
 #error("Height incorrect, please fix Adafruit_SH1106.h!");
 #endif
+
 
 void testdrawbitmap(const uint8_t *bitmap, uint8_t w, uint8_t h) {
   uint8_t icons[NUMFLAKES][3];
@@ -227,8 +224,7 @@ void testdrawline() {
   delay(250);
 }
 
-/*
-void testscrolltext(void) {
+/*void testscrolltext(void) {
   display.setTextSize(2);
   display.setTextColor(WHITE);
   display.setCursor(10,0);
@@ -249,13 +245,14 @@ void testscrolltext(void) {
   display.startscrolldiagleft(0x00, 0x07);
   delay(2000);
   display.stopscroll();
-}
-*/
+}*/
 
-void lcd_setup()   {        
-  
+
+void setup()   {                
+  Serial.begin(9600);
+
   // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
-  display.begin(SH1106_SWITCHCAPVCC);
+  display.begin(SH1106_SWITCHCAPVCC, 0x3C);  // initialize with the I2C addr 0x3D (for the 128x64)
   // init done
   
   // Show image buffer on the display hardware.
@@ -329,10 +326,10 @@ void lcd_setup()   {
   display.clearDisplay();
 
   // draw scrolling text
-  /*testscrolltext();
+ /* testscrolltext();
   delay(2000);
   display.clearDisplay();*/
-  
+
   // text display tests
   display.setTextSize(1);
   display.setTextColor(WHITE);
@@ -362,3 +359,6 @@ void lcd_setup()   {
 }
 
 
+void loop() {
+  
+}

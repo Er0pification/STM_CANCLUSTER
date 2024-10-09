@@ -25,13 +25,12 @@ void setup()
     //InitializeCan();
     initializeStorage();
     initialize_inputs();
-    setup_lcd();
+    lcd_setup();
 }
 
 
 void loop()
 {   
-    loop_lcd();
     ms = millis();
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
     while (1)
