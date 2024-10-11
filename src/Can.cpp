@@ -24,10 +24,11 @@ void canISR() // get bus msg frame passed by a filter to FIFO0
 }
 
 void InitializeCan (){
-    can.begin(EXT_ID_LEN, BR50K, PORTB_8_9_XCVR); // 29b IDs, 250k bit rate, transceiver chip, portB pins 8,9
+  lcd_terminal("Initialize CAN-bus...",0);
+    can.begin(EXT_ID_LEN, BR500K, PORTA_11_12_XCVR); // 29b IDs, 250k bit rate, transceiver chip, portB pins 8,9
   //can.filterMask16Init(0, 0, 0x7ff, 0, 0);                // filter bank 0, filter 0: don't pass any, flt 1: pass all msgs
     can.attachInterrupt(canISR);
-
+    lcd_terminal("Succesful!",0);
 }
 
 

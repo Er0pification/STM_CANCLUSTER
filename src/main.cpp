@@ -20,12 +20,13 @@ void setup()
 {
     pinMode(LED, OUTPUT);
     digitalWrite(LED, LOW);
-    delay(500);
+    lcd_setup();
+    lcd_terminal("Initializing...",0);
     SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);   // This one was missing... 
-    //InitializeCan();
+    InitializeCan();
     initializeStorage();
     initialize_inputs();
-    lcd_setup();
+    
 }
 
 
@@ -44,6 +45,7 @@ void loop()
     if (ee_tick>=EEPROM_TIME)
     {
       ee_tick = 0;
+      data.dataVersion = 60;
       storeData();
     }
     
