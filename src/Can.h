@@ -1,14 +1,3 @@
-/*
-##############
-TRIP##0000.0KM
-AVG##15.5L/100
-INST#15.5L/100
-INST##15.5L/HR
-BATT#####14.5V
-CLT######100oC
-OILT#####100oC
-BOOST####68KPA
-*/
 
 
 #ifndef CAN_H
