@@ -12,7 +12,6 @@ dataUnion_t data;
 
 void initializeStorage (void)
 {
-    lcd_terminal("Initialize EEPROM...",0);
     Wire.setSDA(PB9);
     Wire.setSCL(PB8);
     Wire.begin();
@@ -185,14 +184,14 @@ byte checksumCalculate (uint8_t *buffer)
         checksum+=buffer[i];
     }
     checksum8 = (checksum&0xff) + (checksum>>8); //wrapping carry over around
-   /* char buf[23];
+    /*char buf[23];
         sprintf(buf, "CRC =  0x%02x",checksum8);
         lcd_terminal(buf,0);
-        sprintf(buf, "CRC stored =  0x%02x",data.checksum);
+        sprintf(buf, "CRC stored =  0x%02x",buffer[length-1]);
         lcd_terminal(buf,0);*/
-    uint8_t result = (checksum8- data.bytearray[BLOCK_SIZE-1]); //error check
+    uint8_t result = (checksum8- buffer[length-1]); //error check
     //buffer[length-1] = ~checksum8; //store 1’s complement of checksum to array
-    //data.checksum = checksum8;
+    buffer[length-1] = checksum8;
     if (result == 0) return 1; //if error check result is NULL -> no error occured
     else    return 0;
 }
@@ -232,7 +231,7 @@ void readBlock(void)
     if (checksumCalculate(data.bytearray)) //checksum check
     {   
         //lcd_terminal("EEPROM CRC OK",0);
-        lcd_terminal("EEPROM  OK!",0);
+        lcd_terminal("EEPROM READ OK!",0);
     }
     else  //if checksum error
     {

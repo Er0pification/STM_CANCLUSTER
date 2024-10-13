@@ -34,6 +34,9 @@ void canISR() // get bus msg frame passed by a filter to FIFO0
 {
   byte byte;
   can.rxMsgLen = can.receive(can.id, can.fltIdx, can.rxData.bytes); // get CAN msg
+  /*char buf[23];
+        sprintf(buf, "RX ID =  0x%02x",can.id);
+        lcd_terminal(buf,0);*/
   switch (can.id)
   {
     case BASE_ID:
@@ -77,6 +80,7 @@ void canISR() // get bus msg frame passed by a filter to FIFO0
       currentGear = can.rxData.bytes[5];
       trip = ((can.rxData.bytes[7]<<8)&(can.rxData.bytes[8]))/10;
       msg_cnt++;
+      lcd_terminal("CAN-bus  message ACK",0);
       break;
     case BASE_ID+1:
         rpm = ((can.rxData.bytes[0]<<8)&(can.rxData.bytes[1]));
@@ -118,11 +122,13 @@ void canISR() // get bus msg frame passed by a filter to FIFO0
 }
 
 void InitializeCan (){
-  lcd_terminal("Initialize CAN-bus...",0);
-    can.begin(EXT_ID_LEN, BR500K, PORTA_11_12_XCVR); // 29b IDs, 250k bit rate, transceiver chip, portB pins 8,9
-  //can.filterMask16Init(0, 0, 0x7ff, 0, 0);                // filter bank 0, filter 0: don't pass any, flt 1: pass all msgs
+    can.begin(STD_ID_LEN, BR500K, PORTA_11_12_XCVR); // 29b IDs, 250k bit rate, transceiver chip, portB pins 8,9
+  //can.filterMask16Init(1, 0x2ff, 0x200, 0, 0);                // filter bank 0, filter 0: don't pass any, flt 1: pass all msgs
+  //can.filterMask32Init(0, 0x200, 0xF00);
+  can.filterList16Init(0,0x200,0x201,0x202,0x203);
+  can.filterList16Init(1,0x204,0x206,0x207,0x208);
     can.attachInterrupt(canISR);
-    lcd_terminal("Succesful!",0);
+    lcd_terminal("CAN-bus started",0);
 }
 
 
@@ -131,7 +137,10 @@ void InitializeCan (){
 
 void CanSend(long MsgID, unsigned char *Data, char msgLen) {
  // while (!can.txReady());
-  can.transmit(MsgID, Data, msgLen);
+  if(can.transmit(MsgID, Data, msgLen) == false)
+  {
+    lcd_terminal("CAN-bus TX FAIL!",0);
+  }
 }
 
 

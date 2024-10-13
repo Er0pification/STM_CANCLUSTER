@@ -24,7 +24,7 @@ void setup()
     lcd_terminal("Initializing...",0);
     SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);   // This one was missing... 
     InitializeCan();
-    initializeStorage();
+    //initializeStorage();
     initialize_inputs();
     
 }
@@ -42,6 +42,9 @@ void loop()
           break;
         } 
     }
+    byte buf[8];
+    buf[0] = 0x42;
+    CanSend(0x420, buf, 8);
     if (ee_tick>=EEPROM_TIME)
     {
       ee_tick = 0;

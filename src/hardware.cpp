@@ -2,14 +2,12 @@
 #include "flags.h"
 //#include "GyverBME280.h"
 enum InputName{
-    OilPress,
-    LowBrakeFluid,
-    ParkBrake,
-    Door,
-    Highbeam,
-    Sidelamp,
-    LTURN,
-    RTURN,
+    Undefined1,
+    Undefined2,
+    Undefined3,
+    Undefined4,
+    Undefined5,
+    Undefined6,
     InputNumber
 };
 //extern struct Input inp[InputNumber];
@@ -23,37 +21,30 @@ uint8_t RAW[8];
 void initialize_inputs (void)
 {
     
-    inp[OilPress].PIN = DI1;
-    inp[OilPress].IS_INVERTED= true;
-    //inp[OilPress].FLAG = &F_OILPRESS;
+    inp[Undefined1].PIN = DI7;
+    inp[Undefined1].IS_INVERTED= true;
+    //inp[Undefined1].FLAG = &F_Undefined1;
 
-    inp[LowBrakeFluid].PIN = DI2;
-    inp[LowBrakeFluid].IS_INVERTED = true;
-    //inp[LowBrakeFluid].FLAG = &F_BRAKE_FLUID;
+    inp[Undefined2].PIN = DI8;
+    inp[Undefined2].IS_INVERTED = true;
+    //inp[Undefined2].FLAG = &F_Undefined2;
 
-    inp[ParkBrake].PIN = DI3;
-    inp[ParkBrake].IS_INVERTED = true;
-    //inp[ParkBrake].FLAG = &F_BRAKE_PARK;
+    inp[Undefined3].PIN = DI9;
+    inp[Undefined3].IS_INVERTED = true;
+    //inp[Undefined3].FLAG = &F_Undefined3;
 
-    inp[Door].PIN = DI4;
-    inp[Door].IS_INVERTED = true;
-    //inp[Door].FLAG = &F_DOOR;
+    inp[Undefined4].PIN = DI10;
+    inp[Undefined4].IS_INVERTED = true;
+    //inp[Undefined4].FLAG = &F_Undefined4;
 
-    inp[Highbeam].PIN = DI6;
-    inp[Highbeam].IS_INVERTED = false;
-    //inp[Highbeam].FLAG = &F_HIBEAM;
+    inp[Undefined5].PIN = DI11;
+    inp[Undefined5].IS_INVERTED = false;
+    //inp[Undefined5].FLAG = &F_Undefined5;
 
-    inp[Sidelamp].PIN = DI7;
-    inp[Sidelamp].IS_INVERTED = false;
-    //inp[Sidelamp].FLAG  = &F_SIDELAMP;
+    inp[Undefined6].PIN = DI12;
+    inp[Undefined6].IS_INVERTED = false;
+    //inp[Undefined6].FLAG  = &F_Undefined6;
 
-    inp[LTURN].PIN = DI8;
-    inp[LTURN].IS_INVERTED = false;
-    //inp[LTURN].FLAG = &F_LTURN;
-
-    inp[RTURN].PIN = DI9;
-    inp[RTURN].IS_INVERTED = false;
-    //inp[RTURN].FLAG = &F_RTURN;
     //initializeBaro();
     pinMode(BUTTON, INPUT_PULLUP);
 }

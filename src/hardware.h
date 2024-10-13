@@ -15,6 +15,15 @@
 #define DI11 PB11
 #define DI12 PB10
 #define BUTTON PB15
+#define L1 PA5
+#define L2 PA4
+#define L3 PC15
+#define L4 PC14
+#define L5 PC13
+#define LS1 PB1
+#define LS2 PB0
+#define LS3 PA7
+#define LS4 PA6
 struct Input {
     int PIN;
     bool IS_INVERTED;
