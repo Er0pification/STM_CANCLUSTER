@@ -2,6 +2,7 @@
 #include "flags.h"
 #include "rusefi_broadcast.h"
 eXoCAN can;
+#define CAN_TIMEOUT 1000
 
 uint8_t currentGear;
 uint16_t trip;
@@ -29,6 +30,8 @@ float lambda1;
 float lambda2;
 float fuelPres;
 uint32_t msg_cnt;
+int16_t last_clt, last_oilt, last_amb;
+uint32_t last_rx_millis;
 
 void canISR() // get bus msg frame passed by a filter to FIFO0
 {
@@ -40,6 +43,7 @@ void canISR() // get bus msg frame passed by a filter to FIFO0
   switch (can.id)
   {
     case BASE_ID:
+    last_rx_millis = millis();
       byte = can.rxData.bytes[4];
       if (byte & 1<<REV_LIM_OFF ) {
         F_REV_LIMITER = true;
@@ -67,20 +71,39 @@ void canISR() // get bus msg frame passed by a filter to FIFO0
       }
       if (byte & 1<<FAN1_OFF ) {
         F_FAN1 = true;
+         #ifdef HASLCD
+          lcd_terminal("Fan1 is ON",0);
+        #endif
+        
       }
       else {
         F_FAN1= false;
+         #ifdef HASLCD
+          lcd_terminal("Fan1 is OFF",0);
+        #endif
+        
       }
       if (byte & 1<<FAN2_OFF ) {
         F_FAN2 = true;
+         #ifdef HASLCD
+          lcd_terminal("Fan2 is ON",0);
+        #endif
+        
       }
       else {
         F_FAN2 = false;
+         #ifdef HASLCD
+           lcd_terminal("Fan2 is OFF",0);
+        #endif
+        
       }
       currentGear = can.rxData.bytes[5];
       trip = ((can.rxData.bytes[7]<<8)&(can.rxData.bytes[8]))/10;
       msg_cnt++;
-      lcd_terminal("CAN-bus  message ACK",0);
+       #ifdef HASLCD
+          lcd_terminal("CAN-bus  message ACK",0);
+      #endif
+      
       break;
     case BASE_ID+1:
         rpm = ((can.rxData.bytes[0]<<8)&(can.rxData.bytes[1]));
@@ -99,12 +122,21 @@ void canISR() // get bus msg frame passed by a filter to FIFO0
         iat = can.rxData.bytes[3]-40;
         aux1t = can.rxData.bytes[4]-40;
         aux2t = can.rxData.bytes[5]-40;
+        if (rpm>500)
+        {
+          last_clt = clt;
+          last_amb = aux1t;          
+        }
         mcut = can.rxData.bytes[6]-40;
         fuelLevel = can.rxData.bytes[7]/2;
       break;
     case BASE_ID+4:
       oilPres = ((can.rxData.bytes[2]<<8)&(can.rxData.bytes[3]))/30;
       oilt = can.rxData.bytes[4]-40;
+      if (rpm>500)
+        {
+          last_oilt = oilt;          
+        }
       fuelt = can.rxData.bytes[5]-40;
       batt = ((can.rxData.bytes[6]<<8)&(can.rxData.bytes[7]))/1000;
       break;
@@ -125,13 +157,24 @@ void InitializeCan (){
     can.begin(STD_ID_LEN, BR500K, PORTA_11_12_XCVR); // 29b IDs, 250k bit rate, transceiver chip, portB pins 8,9
   //can.filterMask16Init(1, 0x2ff, 0x200, 0, 0);                // filter bank 0, filter 0: don't pass any, flt 1: pass all msgs
   //can.filterMask32Init(0, 0x200, 0xF00);
+  last_amb = 0; last_clt = 90, last_oilt = 80;
   can.filterList16Init(0,0x200,0x201,0x202,0x203);
   can.filterList16Init(1,0x204,0x206,0x207,0x208);
     can.attachInterrupt(canISR);
-    lcd_terminal("CAN-bus started",0);
+     #ifdef HASLCD
+        lcd_terminal("CAN-bus started",0);
+    #endif
+    
 }
 
-
+bool Can_timeout (void)
+{
+  if (millis()- last_rx_millis> CAN_TIMEOUT)
+  {
+    return true;
+  }
+  else return false;
+}
 
 
 
@@ -139,7 +182,10 @@ void CanSend(long MsgID, unsigned char *Data, char msgLen) {
  // while (!can.txReady());
   if(can.transmit(MsgID, Data, msgLen) == false)
   {
-    lcd_terminal("CAN-bus TX FAIL!",0);
+     #ifdef HASLCD
+        lcd_terminal("CAN-bus TX FAIL!",0);
+    #endif
+    
   }
 }
 

@@ -2,7 +2,9 @@
 #define STORAGE_H
 
 #include<arduino.h>
-#include "lcd.h"
+#ifdef HASLCD
+    #include "lcd.h"
+#endif
 
 #define MEM_SIZE 262144
 #define PAGE_SIZE 64

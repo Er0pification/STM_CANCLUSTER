@@ -26,7 +26,10 @@ void initializeStorage (void)
     }
     else
     {
-        lcd_terminal("No EEPROM found!",0);
+         #ifdef HASLCD
+            lcd_terminal("No EEPROM found!",0);
+        #endif
+        
         eeprom_corrupt = true;
     }
     
@@ -208,9 +211,12 @@ uint16_t WLfindFreshBlock(void)
         }
     }
     //if  end of wear-levelled memory area is reached, but no "fresh" block was found -> something is wrong, eeprom may be corrupted;
-    lcd_terminal("No fresh block found...",0);
-    lcd_terminal("EEPROM corrupted!",0);
-    lcd_terminal("Wiping EEPROM",0);
+     #ifdef HASLCD
+        lcd_terminal("No fresh block found...",0);
+        lcd_terminal("EEPROM corrupted!",0);
+        lcd_terminal("Wiping EEPROM",0);
+    #endif
+    
     wipeStorage();
     eeprom_corrupt = true;
     return 0xffff;
@@ -230,12 +236,18 @@ void readBlock(void)
     DbgSerial.println("\n");*/
     if (checksumCalculate(data.bytearray)) //checksum check
     {   
-        //lcd_terminal("EEPROM CRC OK",0);
-        lcd_terminal("EEPROM READ OK!",0);
+         #ifdef HASLCD
+            lcd_terminal("EEPROM READ OK!",0);
+        #endif
+        
     }
     else  //if checksum error
     {
-        lcd_terminal("EEPROM CRC FAIL!",0);
+
+         #ifdef HASLCD
+            lcd_terminal("EEPROM CRC FAIL!",0);
+        #endif
+       
         eeprom_corrupt= true;
         //nullify all data except wl counter, sunce it is written first it has most chances to  still be valid
     }
@@ -272,7 +284,10 @@ void wipeStorage (void)
     {
         wipePage(addr,i*BLOCK_SIZE,BLOCK_SIZE);
     }
-    lcd_terminal("EEPROM wiped!",0);
+     #ifdef HASLCD
+        lcd_terminal("EEPROM wiped!",0);
+    #endif
+    
 }
 
 byte testStorage (void)
@@ -280,8 +295,11 @@ byte testStorage (void)
     writeByte(addr, 2, 0x42);
     delay(10);
     byte result = readByte(addr,2);
-    char buf[23];
+     #ifdef HASLCD
+        char buf[23];
         sprintf(buf, "EEPROM test=0x%02x",result);
         lcd_terminal(buf,0);
+    #endif
+    
 }
 

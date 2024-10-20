@@ -4,7 +4,10 @@
 #define CAN_H
 
 #include <eXoCAN.h>
-#include "lcd.h"
+#ifdef HASLCD
+    #include "lcd.h"
+#endif
+
 
 #define lo8(x) ((int)(x)&0xff)
 #define hi8(x) ((int)(x)>>8)
